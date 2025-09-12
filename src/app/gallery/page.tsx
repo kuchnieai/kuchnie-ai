@@ -51,6 +51,17 @@ export default function Gallery() {
     load();
   }, [user]);
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Czy na pewno chcesz usunąć ten projekt?')) return;
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) {
+      console.error('[DB delete error]', error);
+      alert('Nie udało się usunąć projektu');
+      return;
+    }
+    setProjects((p) => p.filter((proj) => proj.id !== id));
+  };
+
   if (!user) {
     return <main className="p-6">Musisz się zalogować, aby zobaczyć galerię.</main>;
   }
@@ -75,8 +86,14 @@ export default function Gallery() {
               alt={p.prompt}
               className="w-full h-48 object-cover"
             />
-            <figcaption className="p-2 text-sm">
+            <figcaption className="p-2 text-sm flex items-center justify-between">
               <strong>{p.prompt}</strong>
+              <button
+                onClick={() => handleDelete(p.id)}
+                className="text-red-600 text-xs"
+              >
+                Usuń
+              </button>
             </figcaption>
           </figure>
         ))}
