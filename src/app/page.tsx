@@ -26,6 +26,24 @@ export default function Home() {
     };
   }, []);
 
+  // poproś o nick zaraz po zalogowaniu (jeśli brak w metadanych)
+  useEffect(() => {
+    if (user && !user.user_metadata?.nick) {
+      const nick = window.prompt('Podaj swój nick:')?.trim();
+      if (nick) {
+        supabase.auth
+          .updateUser({ data: { nick } })
+          .then(({ data, error }) => {
+            if (error) {
+              alert('Nie udało się zapisać nicku');
+              return;
+            }
+            setUser(data.user);
+          });
+      }
+    }
+  }, [user]);
+
   const handleGenerate = async () => {
     console.log('[UI] Generuj klik');
     if (!user) { alert('Zaloguj się!'); return; }
@@ -49,7 +67,12 @@ export default function Home() {
 
       if (data?.imageUrl) {
         setProjects(p => [
-          { id: crypto.randomUUID(), imageUrl: data.imageUrl, prompt, user: user.email },
+          {
+            id: crypto.randomUUID(),
+            imageUrl: data.imageUrl,
+            prompt,
+            user: user.user_metadata?.nick || user.email,
+          },
           ...p,
         ]);
         setPrompt('');
@@ -102,7 +125,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <span className="mr-2">{user.email}</span>
+              <span className="mr-2">{user.user_metadata?.nick || user.email}</span>
               <button onClick={signOut} className="border rounded px-3 py-1">
                 Wyloguj
               </button>
