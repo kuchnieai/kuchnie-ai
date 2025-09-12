@@ -13,18 +13,28 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<Project | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [orientation, setOrientation] = useState<'vertical' | 'square' | 'horizontal'>('square');
+  const [showOrientationMenu, setShowOrientationMenu] = useState(false);
 
   // Wczytaj stan z localStorage przy pierwszym renderze
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const storedProjects = localStorage.getItem('projects');
+    const storedOrientation = localStorage.getItem('orientation');
     if (storedUser) {
       try { setUser(JSON.parse(storedUser)); } catch {}
     }
     if (storedProjects) {
       try { setProjects(JSON.parse(storedProjects)); } catch {}
     }
+    if (storedOrientation === 'vertical' || storedOrientation === 'square' || storedOrientation === 'horizontal') {
+      setOrientation(storedOrientation as 'vertical' | 'square' | 'horizontal');
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('orientation', orientation);
+  }, [orientation]);
 
   // 1) Pobierz usera przy starcie + słuchaj zmian sesji (login/logout)
   useEffect(() => {
@@ -136,7 +146,7 @@ export default function Home() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, orientation }),
       });
 
       const data = await res.json().catch(() => ({} as any));
@@ -259,13 +269,50 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="mb-4 flex gap-2">
+      <section className="mb-4 flex gap-2 items-center">
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Opisz swoją kuchnię…"
           className="flex-1 border rounded px-3 py-2"
         />
+        <div className="relative">
+          <button
+            onClick={() => setShowOrientationMenu((s) => !s)}
+            className="border rounded px-3 py-2"
+            aria-label="Opcje generowania"
+          >
+            ☰
+          </button>
+          {showOrientationMenu && (
+            <div className="absolute right-0 mt-1 w-32 bg-white border rounded shadow">
+              <button
+                className={`block w-full text-left px-4 py-2 hover:bg-gray-100 ${
+                  orientation === 'vertical' ? 'font-bold' : ''
+                }`}
+                onClick={() => { setOrientation('vertical'); setShowOrientationMenu(false); }}
+              >
+                Pionowe
+              </button>
+              <button
+                className={`block w-full text-left px-4 py-2 hover:bg-gray-100 ${
+                  orientation === 'square' ? 'font-bold' : ''
+                }`}
+                onClick={() => { setOrientation('square'); setShowOrientationMenu(false); }}
+              >
+                Kwadrat
+              </button>
+              <button
+                className={`block w-full text-left px-4 py-2 hover:bg-gray-100 ${
+                  orientation === 'horizontal' ? 'font-bold' : ''
+                }`}
+                onClick={() => { setOrientation('horizontal'); setShowOrientationMenu(false); }}
+              >
+                Poziom
+              </button>
+            </div>
+          )}
+        </div>
         <button onClick={handleGenerate} disabled={loading} className="border rounded px-3 py-2">
           {loading ? 'Generuję...' : 'Generuj'}
         </button>

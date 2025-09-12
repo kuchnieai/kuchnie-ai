@@ -11,9 +11,23 @@ function extractTextFromCandidates(resp: any): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt } = await req.json();
+    const { prompt, orientation } = await req.json();
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ error: 'Brak promptu' }, { status: 400 });
+    }
+
+    let aspectRatio: string | undefined;
+    switch (orientation) {
+      case 'vertical':
+        aspectRatio = '3:4';
+        break;
+      case 'horizontal':
+        aspectRatio = '16:9';
+        break;
+      case 'square':
+      default:
+        aspectRatio = '1:1';
+        break;
     }
 
     // 1) Opcjonalne doprecyzowanie promptu w Gemini 2.5 Flash (Nano Banana)
@@ -59,6 +73,12 @@ export async function POST(req: NextRequest) {
       process.env.IMAGEN_API_URL ||
       `https://generativelanguage.googleapis.com/v1beta/models/${imagenModel}:predict`;
 
+    const params: any = {
+      // liczba obrazów (1–4), ratio/rozmiar możesz później podać z UI
+      sampleCount: 1,
+    };
+    if (aspectRatio) params.aspectRatio = aspectRatio;
+
     const gen = await fetch(imagenUrl, {
       method: 'POST',
       headers: {
@@ -68,14 +88,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         // REST dla Imagen używa 'instances' + 'parameters'
         instances: [{ prompt: finalPrompt }],
-        parameters: {
-          // liczba obrazów (1–4), ratio/rozmiar możesz później podać z UI
-          sampleCount: 1,
-          // przykładowe parametry:
-          // aspectRatio: '16:9',
-          // sampleImageSize: '1K', // dla Standard/Ultra ('1K' lub '2K')
-          // personGeneration: 'allow_adult'
-        }
+        parameters: params,
       }),
     });
 
