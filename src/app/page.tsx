@@ -10,6 +10,7 @@ export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<Project | null>(null);
 
   // pobierz usera przy starcie + słuchaj zmian sesji (login/logout)
   useEffect(() => {
@@ -133,7 +134,12 @@ export default function Home() {
         )}
         {projects.map((p) => (
           <figure key={p.id} className="border rounded overflow-hidden">
-            <img src={p.imageUrl} alt={p.prompt} className="w-full h-48 object-cover" />
+            <img
+              src={p.imageUrl}
+              alt={p.prompt}
+              className="w-full h-48 object-cover cursor-pointer"
+              onClick={() => setSelectedImage(p)}
+            />
             <figcaption className="p-2 text-sm">
               <strong>{p.prompt}</strong>
               <p className="text-xs opacity-70">by {p.user}</p>
@@ -141,6 +147,19 @@ export default function Home() {
           </figure>
         ))}
       </section>
+
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center"
+          onClick={() => setSelectedImage(null)}
+        >
+          <img
+            src={selectedImage.imageUrl}
+            alt={selectedImage.prompt}
+            className="max-w-full max-h-full"
+          />
+        </div>
+      )}
     </main>
   );
 }
