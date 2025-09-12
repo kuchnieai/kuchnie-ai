@@ -26,6 +26,33 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user) {
+      setProjects([]);
+      return;
+    }
+    const load = async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, image_url, prompt, user')
+        .eq('user', user.email)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('[DB fetch error]', error);
+        return;
+      }
+      setProjects(
+        (data || []).map((row: any) => ({
+          id: row.id,
+          imageUrl: row.image_url,
+          prompt: row.prompt,
+          user: row.user,
+        })),
+      );
+    };
+    load();
+  }, [user]);
+
   const handleGenerate = async () => {
     console.log('[UI] Generuj klik');
     if (!user) { alert('Zaloguj się!'); return; }
@@ -48,10 +75,19 @@ export default function Home() {
       }
 
       if (data?.imageUrl) {
-        setProjects(p => [
-          { id: crypto.randomUUID(), imageUrl: data.imageUrl, prompt, user: user.email },
-          ...p,
-        ]);
+        const newProject = {
+          id: crypto.randomUUID(),
+          imageUrl: data.imageUrl,
+          prompt,
+          user: user.email,
+        };
+        setProjects((p) => [newProject, ...p]);
+        await supabase.from('projects').insert({
+          id: newProject.id,
+          image_url: newProject.imageUrl,
+          prompt: newProject.prompt,
+          user: newProject.user,
+        });
         setPrompt('');
       } else {
         console.log('[API OK, brak imageUrl] data=', data);
