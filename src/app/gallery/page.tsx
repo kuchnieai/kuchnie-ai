@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
-type Project = { id: string; imageUrl: string; prompt: string; user: string };
+type Project = {
+  id: string;
+  imageUrl: string;
+  prompt: string;
+  user: string;
+  favorite: boolean;
+};
 
 export default function Gallery() {
   const [user, setUser] = useState<any>(null);
@@ -18,7 +24,15 @@ export default function Gallery() {
       try { setUser(JSON.parse(storedUser)); } catch {}
     }
     if (storedProjects) {
-      try { setProjects(JSON.parse(storedProjects)); } catch {}
+      try {
+        const parsed = JSON.parse(storedProjects);
+        setProjects(
+          parsed.map((p: any) => ({
+            ...p,
+            favorite: p.favorite || false,
+          })),
+        );
+      } catch {}
     }
   }, []);
 
@@ -62,7 +76,7 @@ export default function Gallery() {
     const load = async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, image_url, prompt, user')
+        .select('id, image_url, prompt, user, favorite')
         .eq('user', user.email)
         .order('created_at', { ascending: false });
 
@@ -77,6 +91,7 @@ export default function Gallery() {
           imageUrl: row.image_url,
           prompt: row.prompt,
           user: row.user,
+          favorite: row.favorite || false,
         })),
       );
     };
@@ -97,6 +112,20 @@ export default function Gallery() {
       return;
     }
     setProjects((p) => p.filter((proj) => proj.id !== id));
+  };
+
+  const toggleFavorite = async (id: string, fav: boolean) => {
+    const { error } = await supabase
+      .from('projects')
+      .update({ favorite: !fav })
+      .eq('id', id);
+    if (error) {
+      console.error('[DB favorite error]', error);
+      return;
+    }
+    setProjects((ps) =>
+      ps.map((p) => (p.id === id ? { ...p, favorite: !fav } : p)),
+    );
   };
 
   if (!user) {
@@ -124,13 +153,24 @@ export default function Gallery() {
               className="w-full h-48 object-cover"
             />
             <figcaption className="p-2 text-sm flex items-center justify-between">
-              <strong>{p.prompt}</strong>
-              <button
-                onClick={() => handleDelete(p.id)}
-                className="text-red-600 text-xs"
-              >
-                Usuń
-              </button>
+              <div>
+                <strong>{p.prompt}</strong>
+                <p className="text-xs opacity-70">by {p.user}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => toggleFavorite(p.id, p.favorite)}>
+                  {p.favorite ? '❤️' : '🤍'}
+                </button>
+                <a href={p.imageUrl} download>
+                  ⬇️
+                </a>
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  className="text-red-600 text-xs"
+                >
+                  Usuń
+                </button>
+              </div>
             </figcaption>
           </figure>
         ))}
