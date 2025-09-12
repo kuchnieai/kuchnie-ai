@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
 type Project = { id: string; imageUrl: string; prompt: string; user: string };
@@ -12,6 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<Project | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   // 1) Pobierz usera przy starcie + słuchaj zmian sesji (login/logout)
   useEffect(() => {
@@ -43,6 +45,20 @@ export default function Home() {
       }
     }
   }, [user]);
+
+  const handleChangeNick = async () => {
+    const nick = window.prompt(
+      'Podaj nowy nick:',
+      user?.user_metadata?.nick || '',
+    )?.trim();
+    if (!nick) return;
+    const { data, error } = await supabase.auth.updateUser({ data: { nick } });
+    if (error) {
+      alert('Nie udało się zapisać nicku');
+      return;
+    }
+    setUser(data.user);
+  };
 
   // 3) Wczytaj projekty zalogowanego usera
   useEffect(() => {
@@ -161,10 +177,35 @@ export default function Home() {
           <h1 className="text-2xl font-bold">kuchnie.ai</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
           {user ? (
             <>
-              <span className="mr-2">{user.user_metadata?.nick || user.email}</span>
+              <button
+                onClick={() => setShowMenu((s) => !s)}
+                className="mr-2"
+              >
+                {user.user_metadata?.nick || user.email}
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow">
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      handleChangeNick();
+                    }}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    Zmień nick
+                  </button>
+                  <Link
+                    href="/gallery"
+                    className="block px-4 py-2 hover:bg-gray-100"
+                    onClick={() => setShowMenu(false)}
+                  >
+                    Moja galeria
+                  </Link>
+                </div>
+              )}
               <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
             </>
           ) : (
