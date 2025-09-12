@@ -4,13 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
-type Project = {
-  id: string;
-  imageUrl: string;
-  prompt: string;
-  user: string;
-  favorite: boolean;
-};
+type Project = { id: string; imageUrl: string; prompt: string; user: string };
 
 export default function Home() {
   const [prompt, setPrompt] = useState('');
@@ -31,15 +25,7 @@ export default function Home() {
       try { setUser(JSON.parse(storedUser)); } catch {}
     }
     if (storedProjects) {
-      try {
-        const parsed = JSON.parse(storedProjects);
-        setProjects(
-          parsed.map((p: any) => ({
-            ...p,
-            favorite: p.favorite || false,
-          })),
-        );
-      } catch {}
+      try { setProjects(JSON.parse(storedProjects)); } catch {}
     }
     if (storedOrientation === 'vertical' || storedOrientation === 'square' || storedOrientation === 'horizontal') {
       setOrientation(storedOrientation as 'vertical' | 'square' | 'horizontal');
@@ -114,20 +100,6 @@ export default function Home() {
     setUser(data.user);
   };
 
-  const toggleFavorite = async (id: string, fav: boolean) => {
-    const { error } = await supabase
-      .from('projects')
-      .update({ favorite: !fav })
-      .eq('id', id);
-    if (error) {
-      console.error('[DB favorite error]', error);
-      return;
-    }
-    setProjects((ps) =>
-      ps.map((p) => (p.id === id ? { ...p, favorite: !fav } : p)),
-    );
-  };
-
   // 3) Wczytaj projekty zalogowanego usera
   useEffect(() => {
     if (!user) {
@@ -138,7 +110,7 @@ export default function Home() {
     const load = async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, image_url, prompt, user, favorite')
+        .select('id, image_url, prompt, user')
         .eq('user', user.email) // filtrujemy po mailu
         .order('created_at', { ascending: false });
 
@@ -153,7 +125,6 @@ export default function Home() {
           imageUrl: row.image_url,
           prompt: row.prompt,
           user: row.user,
-          favorite: row.favorite || false,
         })),
       );
     };
@@ -187,39 +158,25 @@ export default function Home() {
       }
 
       if (data?.imageUrl) {
-        const id = crypto.randomUUID();
-        const base64 = data.imageUrl.split(',')[1];
-        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-        const filePath = `${user.id}/${id}.png`;
-        const { error: uploadError } = await supabase.storage
-          .from('images')
-          .upload(filePath, bytes, { contentType: 'image/png' });
-        if (uploadError) {
-          console.error('[Storage upload error]', uploadError);
-          return;
-        }
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from('images').getPublicUrl(filePath);
-
+        // 1) Dodaj do UI
         const newProject: Project = {
-          id,
-          imageUrl: publicUrl,
+          id: crypto.randomUUID(),
+          imageUrl: data.imageUrl,
           prompt,
-          user: user.email,
-          favorite: false,
+          user: user.email, // zapis w DB też po mailu
         };
-        setProjects((p) => [newProject, ...p]);
+        setProjects(p => [newProject, ...p]);
 
+        // 2) Zapisz w bazie (persistencja)
         const { error } = await supabase.from('projects').insert({
           id: newProject.id,
           image_url: newProject.imageUrl,
           prompt: newProject.prompt,
           user: newProject.user,
-          favorite: newProject.favorite,
         });
         if (error) {
           console.error('[DB insert error]', error);
+          // UI zostawiamy – możesz opcjonalnie cofnąć dodanie do listy gdy insert padnie
         }
 
         setPrompt('');
@@ -373,19 +330,9 @@ export default function Home() {
               className="w-full h-48 object-cover cursor-pointer"
               onClick={() => setSelectedImage(p)}
             />
-            <figcaption className="p-2 text-sm flex items-center justify-between">
-              <div>
-                <strong>{p.prompt}</strong>
-                <p className="text-xs opacity-70">by {p.user}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => toggleFavorite(p.id, p.favorite)}>
-                  {p.favorite ? '❤️' : '🤍'}
-                </button>
-                <a href={p.imageUrl} download>
-                  ⬇️
-                </a>
-              </div>
+            <figcaption className="p-2 text-sm">
+              <strong>{p.prompt}</strong>
+              <p className="text-xs opacity-70">by {p.user}</p>
             </figcaption>
           </figure>
         ))}
