@@ -15,18 +15,49 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<Project | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
+  // Wczytaj stan z localStorage przy pierwszym renderze
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const storedProjects = localStorage.getItem('projects');
+    if (storedUser) {
+      try { setUser(JSON.parse(storedUser)); } catch {}
+    }
+    if (storedProjects) {
+      try { setProjects(JSON.parse(storedProjects)); } catch {}
+    }
+  }, []);
+
   // 1) Pobierz usera przy starcie + słuchaj zmian sesji (login/logout)
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+    });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        localStorage.setItem('user', JSON.stringify(session.user));
+      } else {
+        localStorage.removeItem('user');
+      }
     });
 
     return () => {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  // Synchronizuj usera w localStorage przy każdej zmianie
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
 
   // 2) (opcjonalnie) poproś o nick po zalogowaniu – jeśli go brak
   useEffect(() => {
@@ -64,6 +95,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       setProjects([]);
+      localStorage.removeItem('projects');
       return;
     }
     const load = async () => {
@@ -89,6 +121,11 @@ export default function Home() {
     };
     load();
   }, [user]);
+
+  // Zapisuj projekty do localStorage przy każdej zmianie
+  useEffect(() => {
+    localStorage.setItem('projects', JSON.stringify(projects));
+  }, [projects]);
 
   const handleGenerate = async () => {
     console.log('[UI] Generuj klik');
@@ -167,6 +204,9 @@ export default function Home() {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setProjects([]);
+    localStorage.removeItem('user');
+    localStorage.removeItem('projects');
   };
 
   return (

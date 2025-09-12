@@ -10,11 +10,33 @@ export default function Gallery() {
   const [user, setUser] = useState<any>(null);
   const [projects, setProjects] = useState<Project[]>([]);
 
+  // Przy pierwszym renderze pobierz dane z localStorage
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    const storedUser = localStorage.getItem('user');
+    const storedProjects = localStorage.getItem('projects');
+    if (storedUser) {
+      try { setUser(JSON.parse(storedUser)); } catch {}
+    }
+    if (storedProjects) {
+      try { setProjects(JSON.parse(storedProjects)); } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+    });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        localStorage.setItem('user', JSON.stringify(session.user));
+      } else {
+        localStorage.removeItem('user');
+      }
     });
 
     return () => {
@@ -22,9 +44,19 @@ export default function Gallery() {
     };
   }, []);
 
+  // Synchronizuj usera w localStorage przy zmianach
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user) {
       setProjects([]);
+      localStorage.removeItem('projects');
       return;
     }
     const load = async () => {
@@ -50,6 +82,11 @@ export default function Gallery() {
     };
     load();
   }, [user]);
+
+  // Zapisuj projekty w localStorage
+  useEffect(() => {
+    localStorage.setItem('projects', JSON.stringify(projects));
+  }, [projects]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Czy na pewno chcesz usunąć ten projekt?')) return;
