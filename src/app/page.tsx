@@ -13,7 +13,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<Project | null>(null);
 
-  // pobierz usera przy starcie + słuchaj zmian sesji (login/logout)
+  // 1) Pobierz usera przy starcie + słuchaj zmian sesji (login/logout)
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
 
@@ -26,6 +26,25 @@ export default function Home() {
     };
   }, []);
 
+  // 2) (opcjonalnie) poproś o nick po zalogowaniu – jeśli go brak
+  useEffect(() => {
+    if (user && !user.user_metadata?.nick) {
+      const nick = window.prompt('Podaj swój nick:')?.trim();
+      if (nick) {
+        supabase.auth
+          .updateUser({ data: { nick } })
+          .then(({ data, error }) => {
+            if (error) {
+              alert('Nie udało się zapisać nicku');
+              return;
+            }
+            setUser(data.user);
+          });
+      }
+    }
+  }, [user]);
+
+  // 3) Wczytaj projekty zalogowanego usera
   useEffect(() => {
     if (!user) {
       setProjects([]);
@@ -35,12 +54,14 @@ export default function Home() {
       const { data, error } = await supabase
         .from('projects')
         .select('id, image_url, prompt, user')
-        .eq('user', user.email)
+        .eq('user', user.email) // filtrujemy po mailu
         .order('created_at', { ascending: false });
+
       if (error) {
         console.error('[DB fetch error]', error);
         return;
       }
+
       setProjects(
         (data || []).map((row: any) => ({
           id: row.id,
@@ -75,19 +96,27 @@ export default function Home() {
       }
 
       if (data?.imageUrl) {
-        const newProject = {
+        // 1) Dodaj do UI
+        const newProject: Project = {
           id: crypto.randomUUID(),
           imageUrl: data.imageUrl,
           prompt,
-          user: user.email,
+          user: user.email, // zapis w DB też po mailu
         };
-        setProjects((p) => [newProject, ...p]);
-        await supabase.from('projects').insert({
+        setProjects(p => [newProject, ...p]);
+
+        // 2) Zapisz w bazie (persistencja)
+        const { error } = await supabase.from('projects').insert({
           id: newProject.id,
           image_url: newProject.imageUrl,
           prompt: newProject.prompt,
           user: newProject.user,
         });
+        if (error) {
+          console.error('[DB insert error]', error);
+          // UI zostawiamy – możesz opcjonalnie cofnąć dodanie do listy gdy insert padnie
+        }
+
         setPrompt('');
       } else {
         console.log('[API OK, brak imageUrl] data=', data);
@@ -107,10 +136,7 @@ export default function Home() {
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        // po logowaniu wróć na stronę główną (możesz zmienić)
-        redirectTo: `${window.location.origin}/`,
-      },
+      options: { redirectTo: `${window.location.origin}/` },
     });
   };
 
@@ -138,10 +164,8 @@ export default function Home() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <span className="mr-2">{user.email}</span>
-              <button onClick={signOut} className="border rounded px-3 py-1">
-                Wyloguj
-              </button>
+              <span className="mr-2">{user.user_metadata?.nick || user.email}</span>
+              <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
             </>
           ) : (
             <>
