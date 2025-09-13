@@ -304,26 +304,31 @@ export default function Home() {
   // --- ZAPIS DO GALERII ---
   const handleDownload = async (url: string) => {
     try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const file = new File([blob], `kuchnia-${uuidish()}.png`, {
-        type: blob.type || 'image/png',
-      });
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'kuchnie.ai',
-          text: 'Zapisz obraz w galerii',
+      if (isMobile && navigator.canShare) {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const file = new File([blob], `kuchnia-${uuidish()}.png`, {
+          type: blob.type || 'image/png',
         });
-      } else {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = file.name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'kuchnie.ai',
+            text: 'Zapisz obraz w galerii',
+          });
+          return;
+        }
       }
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kuchnia-${uuidish()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (e) {
       console.error('Błąd zapisu obrazka', e);
       alert('Nie udało się zapisać obrazka');
