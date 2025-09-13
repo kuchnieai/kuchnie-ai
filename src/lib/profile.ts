@@ -62,6 +62,24 @@ export async function ensureProfile(userId: string): Promise<Profile> {
   return profilePromises[userId];
 }
 
+export async function editProfile(userId: string, current: Profile | null): Promise<Profile> {
+  const defaults = current ?? { nick: '', postal_code: '' };
+  const profile = await promptProfile(defaults);
+
+  await supabase.from('profiles').upsert({
+    id: userId,
+    ...profile,
+  });
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`profile_${userId}`, JSON.stringify(profile));
+  }
+
+  profilePromises[userId] = Promise.resolve(profile);
+
+  return profile;
+}
+
 function promptProfile(defaults: Profile): Promise<Profile> {
   return new Promise((resolve) => {
     const dialog = document.createElement('dialog');

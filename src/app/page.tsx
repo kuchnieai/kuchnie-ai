@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { ensureProfile, type Profile } from '@/lib/profile';
+import { ensureProfile, editProfile, type Profile } from '@/lib/profile';
 
 type Project = {
   id: string;            // id rekordu w DB
@@ -254,7 +254,15 @@ export default function Home() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <span className="mr-2">{profile?.nick}</span>
+              <button
+                onClick={async () => {
+                  const p = await editProfile(user.id, profile);
+                  setProfile(p);
+                }}
+                className="mr-2 underline"
+              >
+                {profile?.nick}
+              </button>
               <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
             </>
           ) : (
