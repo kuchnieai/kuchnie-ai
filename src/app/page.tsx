@@ -354,6 +354,7 @@ export default function Home() {
     <main className="min-h-screen p-6">
       <header className="mb-6 flex justify-between items-center">
         <div className="flex items-center gap-2">
+          <img src="/logo.svg" alt="kuchnie.ai logo" className="w-8 h-8 md:w-10 md:h-10" />
           <h1 className="text-2xl font-bold">kuchnie.ai</h1>
         </div>
         <div className="flex items-center gap-2">
