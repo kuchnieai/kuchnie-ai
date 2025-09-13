@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { ensureProfile, editProfile, type Profile } from '@/lib/profile';
 
@@ -26,12 +26,26 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
   const showPrev = () => {
     setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
   };
   const showNext = () => {
     setFullscreenIndex(i => (i === null ? i : (i + 1) % projects.length));
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const startX = touchStartX.current;
+    if (startX === null) return;
+    const diff = (e.changedTouches[0]?.clientX ?? startX) - startX;
+    if (Math.abs(diff) > 50) {
+      diff > 0 ? showPrev() : showNext();
+    }
+    touchStartX.current = null;
   };
 
   // --- SESJA ---
@@ -364,6 +378,8 @@ export default function Home() {
             alt="Pełny ekran"
             className="max-w-full max-h-full"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
+            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           />
           <button
             className="absolute right-4 text-white text-3xl p-2"
