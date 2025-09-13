@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import AuthButtons from '@/components/AuthButtons';
 
 type Project = {
   id: string;            // id rekordu w DB
@@ -221,11 +220,38 @@ export default function Home() {
     setProjects(prev => prev.filter(p => p.id !== proj.id));
   };
 
+  // --- LOGOWANIE ---
+  const signInWithGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` },
+    });
+  };
+  const signInWithEmail = async () => {
+    const email = window.prompt('Podaj maila (Supabase magic link):') || '';
+    if (!email) return;
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    alert(error ? 'Błąd logowania' : 'Sprawdź maila i kliknij link.');
+  };
+  const signOut = async () => { await supabase.auth.signOut(); setUser(null); };
+
   return (
     <main className="min-h-screen p-6">
       <header className="mb-6 flex justify-between">
         <h1 className="text-2xl font-bold">kuchnie.ai</h1>
-        <AuthButtons />
+        <div className="flex items-center gap-2">
+          {user ? (
+            <>
+              <span className="mr-2">{user.email}</span>
+              <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
+            </>
+          ) : (
+            <>
+              <button onClick={signInWithGoogle} className="border rounded px-3 py-1">Zaloguj przez Google</button>
+              <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-70">mailem (fallback)</button>
+            </>
+          )}
+        </div>
       </header>
 
       <section className="mb-4 flex gap-2">
