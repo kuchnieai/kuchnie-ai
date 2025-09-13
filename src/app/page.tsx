@@ -422,28 +422,31 @@ export default function Home() {
         </button>
       </section>
 
-      <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {projects.length === 0 && (
-          <p className="col-span-full text-gray-500">Na razie pusto – wygeneruj coś!</p>
-        )}
-
-        {projects.map((p, i) => (
-          <figure key={p.id} className="relative border rounded overflow-hidden">
-            <img
-              src={p.imageUrl}
-              alt={p.prompt}
-              className="w-full h-48 object-cover cursor-pointer"
-              onClick={() => setFullscreenIndex(i)}
-              onError={(e) => {
-                const el = e.currentTarget;
-                if (!el.src.includes('download=1')) {
-                  el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
-                }
-              }}
-            />
-          </figure>
-        ))}
-      </section>
+      {projects.length === 0 ? (
+        <p className="text-gray-500">Na razie pusto – wygeneruj coś!</p>
+      ) : (
+        <section className="columns-2 md:columns-3 gap-4">
+          {projects.map((p, i) => (
+            <figure
+              key={p.id}
+              className="mb-4 break-inside-avoid relative border rounded overflow-hidden"
+            >
+              <img
+                src={p.imageUrl}
+                alt={p.prompt}
+                className="w-full h-auto object-cover cursor-pointer"
+                onClick={() => setFullscreenIndex(i)}
+                onError={(e) => {
+                  const el = e.currentTarget;
+                  if (!el.src.includes('download=1')) {
+                    el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
+                  }
+                }}
+              />
+            </figure>
+          ))}
+        </section>
+      )}
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
