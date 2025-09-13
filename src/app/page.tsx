@@ -28,7 +28,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [aspectRatio, setAspectRatio] = useState('4:3');
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -397,10 +397,10 @@ export default function Home() {
           {menuOpen && (
             <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-50">
               <button
-                onClick={() => selectAspect('9:16')}
-                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '9:16' ? 'font-bold' : ''}`}
+                onClick={() => selectAspect('3:4')}
+                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '3:4' ? 'font-bold' : ''}`}
               >
-                Pion
+                Pion 4:3
               </button>
               <button
                 onClick={() => selectAspect('1:1')}
@@ -409,10 +409,10 @@ export default function Home() {
                 Kwadrat
               </button>
               <button
-                onClick={() => selectAspect('16:9')}
-                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '16:9' ? 'font-bold' : ''}`}
+                onClick={() => selectAspect('4:3')}
+                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '4:3' ? 'font-bold' : ''}`}
               >
-                Poziom
+                Poziom 4:3
               </button>
             </div>
           )}
