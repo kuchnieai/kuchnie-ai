@@ -11,36 +11,54 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
 
-  // sesja
+  // --- SESJA ---
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-    return () => { sub.subscription.unsubscribe(); };
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  // po zalogowaniu wczytaj moje projekty
+  // --- PO ZALOGOWANIU WCZYTAJ MOJE PROJEKTY ---
   useEffect(() => {
     const load = async () => {
-      if (!user) { setProjects([]); return; }
+      if (!user) {
+        setProjects([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('projects')
         .select('id, prompt, image_url, created_at, user_email')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) { console.error('[projects/select]', error); return; }
+      if (error) {
+        console.error('[projects/select]', error);
+        return;
+      }
 
       const out: Project[] = [];
       for (const row of data ?? []) {
         const filePath = row.image_url as string;
-        const { data: signed, error: sErr } =
-          await supabase.storage.from('images').createSignedUrl(filePath, 60 * 60);
-        if (sErr) { console.error('[signedUrl]', sErr, filePath); continue; }
+        const { data: signed, error: sErr } = await supabase
+          .storage
+          .from('images')
+          .createSignedUrl(filePath, 60 * 60);
+
+        if (sErr) {
+          console.error('[signedUrl]', sErr, filePath);
+          continue;
+        }
+
+        // iOS-friendly: w razie czego dopniemy download=1
         const viewUrl = signed?.signedUrl
           ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
           : '';
+
         out.push({
           id: row.id as string,
           imageUrl: viewUrl,
@@ -50,22 +68,31 @@ export default function Home() {
       }
       setProjects(out);
     };
+
     load();
   }, [user]);
 
+  // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
     console.log('[UI] Generuj klik');
-    if (!user) { alert('Zaloguj się!'); return; }
-    if (!prompt.trim()) { alert('Wpisz opis kuchni'); return; }
+    if (!user) {
+      alert('Zaloguj się!');
+      return;
+    }
+    if (!prompt.trim()) {
+      alert('Wpisz opis kuchni');
+      return;
+    }
 
     setLoading(true);
     try {
-      // 1) wygeneruj jak dotąd
+      // 1) Wywołaj API generowania (jak dotąd)
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
+
       const data = await res.json().catch(() => ({} as any));
       if (!res.ok) {
         console.error('[API ERROR]', data);
@@ -74,33 +101,51 @@ export default function Home() {
       }
 
       const remoteUrl: string | undefined = data?.imageUrl;
-      if (!remoteUrl) { alert('API nie zwróciło imageUrl'); return; }
+      if (!remoteUrl) {
+        alert('API nie zwróciło imageUrl');
+        return;
+      }
 
-      // 2) pobierz obrazek przez NASZE API (proxy) → omijamy CORS na iOS
-      const dl = await fetch(`/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`, { cache: 'no-store' });
-      if (!dl.ok) throw new Error('Load failed');
+      // 2) Pobierz obraz przez NASZE proxy (fix iOS/CORS).
+      //    Jeżeli iOS nadal rzuci TypeError: Load failed – spróbujemy fallback bezpośredni.
+      let contentType = 'image/png';
+      let arrayBuffer: ArrayBuffer;
 
-      const contentType = dl.headers.get('content-type') ?? 'image/png';
-      const buf = await dl.arrayBuffer();
-      const blob = new Blob([buf], { type: contentType });
+      try {
+        const proxyResp = await fetch(
+          `/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`,
+          { cache: 'no-store' }
+        );
+        if (!proxyResp.ok) throw new Error(`proxy status ${proxyResp.status}`);
+        contentType = proxyResp.headers.get('content-type') ?? contentType;
+        arrayBuffer = await proxyResp.arrayBuffer();
+      } catch (_proxyErr) {
+        // Fallback (gdyby proxy nie pykło)
+        const directResp = await fetch(remoteUrl, { cache: 'no-store' });
+        if (!directResp.ok) throw new Error(`direct status ${directResp.status}`);
+        contentType = directResp.headers.get('content-type') ?? contentType;
+        arrayBuffer = await directResp.arrayBuffer();
+      }
 
-      // rozszerzenie po content-type (prosto)
+      const blob = new Blob([arrayBuffer], { type: contentType });
+
+      // 3) Rozszerzenie na podstawie content-type
       const ext =
         contentType.includes('jpeg') ? 'jpg' :
         contentType.includes('webp') ? 'webp' :
         contentType.includes('png')  ? 'png'  : 'bin';
 
-      // 3) ścieżka: images/<UID>/<losowe>.<ext>
+      // 4) Ścieżka: images/<UID>/<losowe>.<ext>
       const filePath = `${user.id}/${crypto.randomUUID()}.${ext}`;
 
-      // 4) upload do prywatnego bucketa
+      // 5) Upload do prywatnego bucketa
       const { error: upErr } = await supabase
         .storage
         .from('images')
         .upload(filePath, blob, { contentType });
       if (upErr) throw upErr;
 
-      // 5) wpis w bazie
+      // 6) Wpis do DB
       const { error: insErr } = await supabase.from('projects').insert({
         user_id: user.id,
         user_email: user.email,
@@ -109,20 +154,24 @@ export default function Home() {
       });
       if (insErr) throw insErr;
 
-      // 6) podpisany URL do podglądu (iOS-friendly z ?download=1)
-      const { data: signed } =
-        await supabase.storage.from('images').createSignedUrl(filePath, 60 * 60);
+      // 7) Podpisany URL (na podgląd) – z dopinką download=1 (iOS)
+      const { data: signed } = await supabase
+        .storage
+        .from('images')
+        .createSignedUrl(filePath, 60 * 60);
+
       const viewUrl = signed?.signedUrl
         ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
         : '';
 
-      // 7) UI
+      // 8) UI
       setProjects(p => [{
         id: crypto.randomUUID(),
         imageUrl: viewUrl,
         prompt,
         user: user.email,
       }, ...p]);
+
       setPrompt('');
     } catch (e) {
       console.error(e);
@@ -132,20 +181,25 @@ export default function Home() {
     }
   };
 
-  // logowanie
+  // --- LOGOWANIE ---
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/` },
     });
   };
+
   const signInWithEmail = async () => {
     const email = window.prompt('Podaj maila (Supabase magic link):') || '';
     if (!email) return;
     const { error } = await supabase.auth.signInWithOtp({ email });
     alert(error ? 'Błąd logowania' : 'Sprawdź maila i kliknij link.');
   };
-  const signOut = async () => { await supabase.auth.signOut(); setUser(null); };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   return (
     <main className="min-h-screen p-6">
@@ -155,12 +209,18 @@ export default function Home() {
           {user ? (
             <>
               <span className="mr-2">{user.email}</span>
-              <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
+              <button onClick={signOut} className="border rounded px-3 py-1">
+                Wyloguj
+              </button>
             </>
           ) : (
             <>
-              <button onClick={signInWithGoogle} className="border rounded px-3 py-1">Zaloguj przez Google</button>
-              <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-70">mailem (fallback)</button>
+              <button onClick={signInWithGoogle} className="border rounded px-3 py-1">
+                Zaloguj przez Google
+              </button>
+              <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-70">
+                mailem (fallback)
+              </button>
             </>
           )}
         </div>
@@ -189,6 +249,7 @@ export default function Home() {
               alt={p.prompt}
               className="w-full h-48 object-cover"
               onError={(e) => {
+                // awaryjnie dopnij download=1, jeśli jeszcze go nie było
                 const el = e.currentTarget;
                 if (!el.src.includes('download=1')) {
                   el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
