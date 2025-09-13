@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-type Project = { id: string; imageUrl: string; prompt: string; user: string };
+type Project = {
+  id: string;            // id rekordu w DB
+  imageUrl: string;      // podpisany URL do <img> (albo ?download=1)
+  storagePath: string;   // ścieżka w Storage (np. "<uid>/<uuid>.png")
+  prompt: string;
+  user: string;
+};
 
-// drobny fallback dla starszych przeglądarek
 function uuidish() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -52,6 +57,7 @@ export default function Home() {
       const out: Project[] = [];
       for (const row of data ?? []) {
         const filePath = row.image_url as string;
+
         const { data: signed, error: sErr } = await supabase
           .storage
           .from('images')
@@ -62,7 +68,6 @@ export default function Home() {
           continue;
         }
 
-        // iOS-friendly: dopnij ?download=1 (zmusza Safari do "pobrania")
         const viewUrl = signed?.signedUrl
           ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
           : '';
@@ -70,6 +75,7 @@ export default function Home() {
         out.push({
           id: row.id as string,
           imageUrl: viewUrl,
+          storagePath: filePath,
           prompt: row.prompt as string,
           user: (row as any).user_email ?? user.email,
         });
@@ -83,14 +89,8 @@ export default function Home() {
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
     console.log('[UI] Generuj klik');
-    if (!user) {
-      alert('Zaloguj się!');
-      return;
-    }
-    if (!prompt.trim()) {
-      alert('Wpisz opis kuchni');
-      return;
-    }
+    if (!user) { alert('Zaloguj się!'); return; }
+    if (!prompt.trim()) { alert('Wpisz opis kuchni'); return; }
 
     setLoading(true);
     try {
@@ -109,49 +109,37 @@ export default function Home() {
       }
 
       const remoteUrl: string | undefined = data?.imageUrl;
-      if (!remoteUrl) {
-        alert('API nie zwróciło imageUrl');
-        return;
-      }
+      if (!remoteUrl) { alert('API nie zwróciło imageUrl'); return; }
 
-      // 2) Pobierz obraz → obsłuż oba przypadki:
-      //    a) data:image/...;base64,...
-      //    b) zwykły https (przez nasze proxy)
+      // 2) data:URL (base64) albo https (proxy)
       let blob: Blob;
       let contentType = 'image/png';
 
       if (remoteUrl.startsWith('data:')) {
-        // data URL
         const m = remoteUrl.match(/^data:([^;]+);base64,(.*)$/);
         if (!m) throw new Error('Invalid data URL from /api/generate');
         contentType = m[1] || 'image/png';
         const b64 = m[2];
-
-        // base64 -> Uint8Array -> Blob
         const binary = atob(b64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         blob = new Blob([bytes], { type: contentType });
       } else {
-        // https -> pobierz przez proxy (fix iOS/CORS)
         let resp = await fetch(
           `/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`,
           { cache: 'no-store' }
         );
-
-        // awaryjny fallback gdyby proxy zwróciło błąd
         if (!resp.ok) {
           console.warn('[proxy failed]', resp.status, '— trying direct fetch');
           resp = await fetch(remoteUrl, { cache: 'no-store' });
           if (!resp.ok) throw new Error(`Load failed (${resp.status})`);
         }
-
         contentType = resp.headers.get('content-type') ?? contentType;
         const buf = await resp.arrayBuffer();
         blob = new Blob([buf], { type: contentType });
       }
 
-      // 3) Rozszerzenie na podstawie content-type
+      // 3) Rozszerzenie
       const ext =
         contentType.includes('jpeg') ? 'jpg' :
         contentType.includes('webp') ? 'webp' :
@@ -160,23 +148,27 @@ export default function Home() {
       // 4) Ścieżka: images/<UID>/<losowe>.<ext>
       const filePath = `${user.id}/${uuidish()}.${ext}`;
 
-      // 5) Upload do prywatnego bucketa
+      // 5) Upload
       const { error: upErr } = await supabase
         .storage
         .from('images')
         .upload(filePath, blob, { contentType });
       if (upErr) throw upErr;
 
-      // 6) Wpis do DB
-      const { error: insErr } = await supabase.from('projects').insert({
-        user_id: user.id,
-        user_email: user.email,
-        prompt,
-        image_url: filePath,
-      });
+      // 6) INSERT + zwróć id
+      const { data: ins, error: insErr } = await supabase
+        .from('projects')
+        .insert({
+          user_id: user.id,
+          user_email: user.email,
+          prompt,
+          image_url: filePath,
+        })
+        .select('id')
+        .single();
       if (insErr) throw insErr;
 
-      // 7) Podpisany URL (na podgląd) – z dopinką ?download=1 (iOS)
+      // 7) Podpisany URL (iOS-friendly)
       const { data: signed } = await supabase
         .storage
         .from('images')
@@ -188,8 +180,9 @@ export default function Home() {
 
       // 8) UI
       setProjects(p => [{
-        id: uuidish(),
+        id: ins?.id ?? uuidish(),
         imageUrl: viewUrl,
+        storagePath: filePath,
         prompt,
         user: user.email,
       }, ...p]);
@@ -203,6 +196,30 @@ export default function Home() {
     }
   };
 
+  // --- USUWANIE PROJEKTU (plik + rekord) ---
+  const handleDelete = async (proj: Project) => {
+    if (!confirm('Usunąć ten projekt?')) return;
+
+    // 1) usuń plik ze Storage
+    const { error: sErr } = await supabase.storage.from('images').remove([proj.storagePath]);
+    if (sErr) {
+      console.error('[storage.remove]', sErr);
+      alert(`Błąd usuwania pliku: ${sErr.message ?? sErr}`);
+      return;
+    }
+
+    // 2) usuń rekord z bazy
+    const { error: dErr } = await supabase.from('projects').delete().eq('id', proj.id);
+    if (dErr) {
+      console.error('[projects/delete]', dErr);
+      alert(`Błąd usuwania rekordu: ${dErr.message ?? dErr}`);
+      return;
+    }
+
+    // 3) odśwież UI
+    setProjects(prev => prev.filter(p => p.id !== proj.id));
+  };
+
   // --- LOGOWANIE ---
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -210,18 +227,13 @@ export default function Home() {
       options: { redirectTo: `${window.location.origin}/` },
     });
   };
-
   const signInWithEmail = async () => {
     const email = window.prompt('Podaj maila (Supabase magic link):') || '';
     if (!email) return;
     const { error } = await supabase.auth.signInWithOtp({ email });
     alert(error ? 'Błąd logowania' : 'Sprawdź maila i kliknij link.');
   };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
+  const signOut = async () => { await supabase.auth.signOut(); setUser(null); };
 
   return (
     <main className="min-h-screen p-6">
@@ -231,18 +243,12 @@ export default function Home() {
           {user ? (
             <>
               <span className="mr-2">{user.email}</span>
-              <button onClick={signOut} className="border rounded px-3 py-1">
-                Wyloguj
-              </button>
+              <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
             </>
           ) : (
             <>
-              <button onClick={signInWithGoogle} className="border rounded px-3 py-1">
-                Zaloguj przez Google
-              </button>
-              <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-70">
-                mailem (fallback)
-              </button>
+              <button onClick={signInWithGoogle} className="border rounded px-3 py-1">Zaloguj przez Google</button>
+              <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-70">mailem (fallback)</button>
             </>
           )}
         </div>
@@ -264,6 +270,7 @@ export default function Home() {
         {projects.length === 0 && (
           <p className="col-span-full text-gray-500">Na razie pusto – wygeneruj coś!</p>
         )}
+
         {projects.map((p) => (
           <figure key={p.id} className="border rounded overflow-hidden">
             <img
@@ -271,16 +278,24 @@ export default function Home() {
               alt={p.prompt}
               className="w-full h-48 object-cover"
               onError={(e) => {
-                // awaryjnie dopnij download=1, jeśli jeszcze go nie było
                 const el = e.currentTarget;
                 if (!el.src.includes('download=1')) {
                   el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
                 }
               }}
             />
-            <figcaption className="p-2 text-sm">
-              <strong>{p.prompt}</strong>
-              <p className="text-xs opacity-70">by {p.user}</p>
+            <figcaption className="p-2 text-sm flex items-center justify-between gap-2">
+              <div>
+                <strong className="block">{p.prompt}</strong>
+                <p className="text-xs opacity-70">by {p.user}</p>
+              </div>
+              <button
+                onClick={() => handleDelete(p)}
+                className="text-red-600 border border-red-500 rounded px-2 py-1 text-xs"
+                title="Usuń projekt"
+              >
+                Usuń
+              </button>
             </figcaption>
           </figure>
         ))}
