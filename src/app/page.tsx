@@ -381,22 +381,6 @@ export default function Home() {
             <figcaption className="p-2 text-sm pr-16">
               <strong className="block">{p.prompt}</strong>
             </figcaption>
-            <div className="absolute bottom-2 right-2 flex gap-2">
-              <button
-                onClick={() => handleDownload(p.imageUrl)}
-                className="text-black border border-black rounded px-2 py-1 text-xs bg-white"
-                title="Zapisz obraz w galerii"
-              >
-                Pobierz
-              </button>
-              <button
-                onClick={() => handleDelete(p)}
-                className="text-red-600 border border-red-500 rounded px-2 py-1 text-xs bg-white"
-                title="Usuń projekt"
-              >
-                Usuń
-              </button>
-            </div>
           </figure>
         ))}
       </section>
@@ -420,6 +404,22 @@ export default function Home() {
             onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           />
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
+              className="text-black border border-black rounded px-3 py-1 text-sm bg-white"
+              title="Zapisz obraz w galerii"
+            >
+              Pobierz
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleDelete(projects[fullscreenIndex]); setFullscreenIndex(null); }}
+              className="text-red-600 border border-red-500 rounded px-3 py-1 text-sm bg-white"
+              title="Usuń projekt"
+            >
+              Usuń
+            </button>
+          </div>
           <button
             className="absolute right-4 text-white text-3xl p-2"
             onClick={(e) => { e.stopPropagation(); showNext(); }}
