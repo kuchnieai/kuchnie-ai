@@ -372,9 +372,6 @@ export default function Home() {
           placeholder="Opisz swoją kuchnię…"
           className="flex-1 border rounded px-3 py-2"
         />
-        <button onClick={handleGenerate} disabled={loading} className="border rounded px-3 py-2">
-          {loading ? 'Generuję...' : 'Generuj'}
-        </button>
         <div className="relative">
           <button
             onClick={() => setMenuOpen((o) => !o)}
@@ -384,7 +381,7 @@ export default function Home() {
             ☰
           </button>
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow">
+            <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-50">
               <button
                 onClick={() => selectAspect('9:16')}
                 className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '9:16' ? 'font-bold' : ''}`}
@@ -406,6 +403,9 @@ export default function Home() {
             </div>
           )}
         </div>
+        <button onClick={handleGenerate} disabled={loading} className="border rounded px-3 py-2">
+          {loading ? 'Generuję...' : 'Generuj'}
+        </button>
       </section>
 
       <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
