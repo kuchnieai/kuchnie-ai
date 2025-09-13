@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 type Project = {
@@ -30,11 +29,29 @@ export default function Home() {
     };
   }, []);
 
-  // helper: dopnij download=1 (iOS Safari czasem wymaga)
+  // logowanie / wylogowanie
+  const signInWithGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` },
+    });
+  };
+  const signInWithEmail = async () => {
+    const email = window.prompt('Podaj maila (Supabase magic link):') || '';
+    if (!email) return;
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    alert(error ? 'Błąd logowania' : 'Sprawdź maila i kliknij link.');
+  };
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setProjects([]);
+  };
+
+  // helpers
   const withDownloadParam = (url: string | undefined) =>
     url ? `${url}${url.includes('?') ? '&' : '?'}download=1` : '';
 
-  // helper: podpisany URL
   const signedUrlFor = async (path: string, seconds = 60 * 60) => {
     const { data, error } = await supabase.storage.from('images').createSignedUrl(path, seconds);
     if (error) throw error;
@@ -59,29 +76,25 @@ export default function Home() {
         return;
       }
 
-      try {
-        const mapped = await Promise.all(
-          (data ?? []).map(async (row: any) => {
-            const storagePath = row.image_url as string;
-            let viewUrl = '';
-            try {
-              viewUrl = await signedUrlFor(storagePath);
-            } catch (e) {
-              console.warn('signedUrl error for', storagePath, e);
-            }
-            return {
-              id: row.id as string,
-              prompt: row.prompt as string,
-              imageUrl: viewUrl,
-              storagePath,
-              user: row.user_email ?? user.email,
-            } as Project;
-          })
-        );
-        setProjects(mapped);
-      } catch (e) {
-        console.error(e);
-      }
+      const mapped = await Promise.all(
+        (data ?? []).map(async (row: any) => {
+          const storagePath = row.image_url as string;
+          let viewUrl = '';
+          try {
+            viewUrl = await signedUrlFor(storagePath);
+          } catch (e) {
+            console.warn('signedUrl error for', storagePath, e);
+          }
+          return {
+            id: row.id as string,
+            prompt: row.prompt as string,
+            imageUrl: viewUrl,
+            storagePath,
+            user: row.user_email ?? user.email,
+          } as Project;
+        })
+      );
+      setProjects(mapped);
     };
     load();
   }, [user]);
@@ -173,15 +186,12 @@ export default function Home() {
   const handleDelete = async (proj: Project) => {
     if (!confirm('Usunąć ten projekt? (plik w Storage i wpis w bazie)')) return;
     try {
-      // 1) Storage
       const { error: stErr } = await supabase.storage.from('images').remove([proj.storagePath]);
       if (stErr) throw stErr;
 
-      // 2) DB
       const { error: dbErr } = await supabase.from('projects').delete().eq('id', proj.id);
       if (dbErr) throw dbErr;
 
-      // 3) UI
       setProjects((p) => p.filter((x) => x.id !== proj.id));
     } catch (e) {
       console.error(e);
@@ -198,10 +208,29 @@ export default function Home() {
     });
   };
 
-  // ---------- UI ----------
   return (
-    <main className="min-h-screen p-6">
-      <header className="mb-6 flex gap-3 items-center">
+    <main className="min-h-screen p-6 space-y-4">
+      {/* Pasek z logowaniem */}
+      <div className="flex items-center justify-end gap-2">
+        {user ? (
+          <>
+            <span className="text-sm opacity-80">{user.email}</span>
+            <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
+          </>
+        ) : (
+          <>
+            <button onClick={signInWithGoogle} className="border rounded px-3 py-1">
+              Zaloguj przez Google
+            </button>
+            <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-80">
+              mailem (fallback)
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Pole prompt + Generuj */}
+      <header className="flex gap-3 items-center">
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -217,6 +246,7 @@ export default function Home() {
         </button>
       </header>
 
+      {/* Karty projektów */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {projects.length === 0 && (
           <p className="col-span-full text-gray-500">Na razie pusto – wygeneruj coś!</p>
@@ -224,8 +254,6 @@ export default function Home() {
 
         {projects.map((p) => {
           const isOpen = expanded.has(p.id);
-
-          // 2-linijkowy clamp z poprawnym typem (Vercel strict)
           const clampStyle: CSSProperties = isOpen
             ? {}
             : {
@@ -236,11 +264,8 @@ export default function Home() {
               };
 
           return (
-            <figure
-              key={p.id}
-              className="relative border rounded overflow-hidden shadow-sm bg-white"
-            >
-              {/* Usuń – w prawym górnym rogu */}
+            <figure key={p.id} className="relative border rounded overflow-hidden shadow-sm bg-white">
+              {/* Usuń */}
               <button
                 onClick={() => handleDelete(p)}
                 className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700"
@@ -255,14 +280,14 @@ export default function Home() {
                 className="w-full aspect-[4/3] object-cover"
                 onError={(e) => {
                   const el = e.currentTarget;
-                  if (!el.src.includes('download=1')) {
-                    el.src = withDownloadParam(el.src);
-                  }
+                  if (!el.src.includes('download=1')) el.src = withDownloadParam(el.src);
                 }}
               />
 
               <figcaption className="p-3">
-                <h3 className="text-lg font-semibold mb-1">{p.prompt.split('\n')[0] || 'Projekt'}</h3>
+                <h3 className="text-lg font-semibold mb-1">
+                  {p.prompt.split('\n')[0] || 'Projekt'}
+                </h3>
 
                 <p
                   className="font-medium leading-snug cursor-pointer text-gray-800"
@@ -279,7 +304,6 @@ export default function Home() {
                   <button
                     onClick={() => toggleExpand(p.id)}
                     className="mt-2 text-sm text-blue-600 hover:underline"
-                    title="Pokaż więcej"
                   >
                     …pokaż więcej
                   </button>
@@ -288,7 +312,6 @@ export default function Home() {
                   <button
                     onClick={() => toggleExpand(p.id)}
                     className="mt-2 text-sm text-blue-600 hover:underline"
-                    title="Zwiń"
                   >
                     Zwiń
                   </button>
