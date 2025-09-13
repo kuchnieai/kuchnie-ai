@@ -40,6 +40,15 @@ export default function Home() {
     if (saved) setAspectRatio(saved);
   }, []);
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = fullscreenIndex !== null ? 'hidden' : '';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [fullscreenIndex]);
+
   const showPrev = () => {
     setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
   };
