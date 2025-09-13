@@ -25,7 +25,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
+  const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+
+  const showPrev = () => {
+    setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
+  };
+  const showNext = () => {
+    setFullscreenIndex(i => (i === null ? i : (i + 1) % projects.length));
+  };
 
   // --- SESJA ---
   useEffect(() => {
@@ -98,6 +105,24 @@ export default function Home() {
 
     load();
   }, [user]);
+
+  // --- PEŁNY EKRAN: NAWIGACJA KL. ---
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (fullscreenIndex === null) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        showPrev();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        showNext();
+      } else if (e.key === 'Escape') {
+        setFullscreenIndex(null);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [fullscreenIndex, projects.length]);
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
@@ -292,13 +317,13 @@ export default function Home() {
           <p className="col-span-full text-gray-500">Na razie pusto – wygeneruj coś!</p>
         )}
 
-        {projects.map((p) => (
+        {projects.map((p, i) => (
           <figure key={p.id} className="border rounded overflow-hidden">
             <img
               src={p.imageUrl}
               alt={p.prompt}
               className="w-full h-48 object-cover cursor-pointer"
-              onClick={() => setFullscreenUrl(p.imageUrl)}
+              onClick={() => setFullscreenIndex(i)}
               onError={(e) => {
                 const el = e.currentTarget;
                 if (!el.src.includes('download=1')) {
@@ -322,17 +347,31 @@ export default function Home() {
           </figure>
         ))}
       </section>
-      {fullscreenUrl && (
+      {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
-          onClick={() => setFullscreenUrl(null)}
+          onClick={() => setFullscreenIndex(null)}
         >
+          <button
+            className="absolute left-4 text-white text-3xl p-2"
+            onClick={(e) => { e.stopPropagation(); showPrev(); }}
+            aria-label="Poprzednie zdjęcie"
+          >
+            ‹
+          </button>
           <img
-            src={fullscreenUrl}
+            src={projects[fullscreenIndex].imageUrl}
             alt="Pełny ekran"
             className="max-w-full max-h-full"
             onClick={(e) => e.stopPropagation()}
           />
+          <button
+            className="absolute right-4 text-white text-3xl p-2"
+            onClick={(e) => { e.stopPropagation(); showNext(); }}
+            aria-label="Następne zdjęcie"
+          >
+            ›
+          </button>
         </div>
       )}
     </main>
