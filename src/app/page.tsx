@@ -272,6 +272,35 @@ export default function Home() {
     setProjects(prev => prev.filter(p => p.id !== proj.id));
   };
 
+  // --- ZAPIS DO GALERII ---
+  const handleDownload = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const file = new File([blob], `kuchnia-${uuidish()}.png`, {
+        type: blob.type || 'image/png',
+      });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'kuchnie.ai',
+          text: 'Zapisz obraz w galerii',
+        });
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (e) {
+      console.error('Błąd zapisu obrazka', e);
+      alert('Nie udało się zapisać obrazka');
+    }
+  };
+
   // --- LOGOWANIE ---
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -349,13 +378,13 @@ export default function Home() {
               <strong className="block">{p.prompt}</strong>
             </figcaption>
             <div className="absolute bottom-2 right-2 flex gap-2">
-              <a
-                href={p.imageUrl}
-                download
+              <button
+                onClick={() => handleDownload(p.imageUrl)}
                 className="text-black border border-black rounded px-2 py-1 text-xs bg-white"
+                title="Zapisz obraz w galerii"
               >
                 Pobierz
-              </a>
+              </button>
               <button
                 onClick={() => handleDelete(p)}
                 className="text-red-600 border border-red-500 rounded px-2 py-1 text-xs bg-white"
