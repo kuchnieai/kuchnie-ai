@@ -25,43 +25,83 @@ export default function Home() {
   }, []);
 
   const handleGenerate = async () => {
-    console.log('[UI] Generuj klik');
-    if (!user) { alert('Zaloguj się!'); return; }
-    if (!prompt.trim()) { alert('Wpisz opis kuchni'); return; }
+  console.log('[UI] Generuj klik');
+  if (!user) { alert('Zaloguj się!'); return; }
+  if (!prompt.trim()) { alert('Wpisz opis kuchni'); return; }
 
-    setLoading(true);
-    try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
+  setLoading(true);
+  try {
+    // 1) Zawołaj swoje API jak dotychczas
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
 
-      const data = await res.json().catch(() => ({} as any));
+    const data = await res.json().catch(() => ({} as any));
 
-      if (!res.ok) {
-        console.error('[API ERROR]', data);
-        alert(`Błąd generowania: ${data?.error ?? res.status}\n${data?.details ?? ''}`);
-        return;
-      }
-
-      if (data?.imageUrl) {
-        setProjects(p => [
-          { id: crypto.randomUUID(), imageUrl: data.imageUrl, prompt, user: user.email },
-          ...p,
-        ]);
-        setPrompt('');
-      } else {
-        console.log('[API OK, brak imageUrl] data=', data);
-        alert('API nie zwróciło imageUrl (sprawdź konsolę).');
-      }
-    } catch (e) {
-      console.error(e);
-      alert(`Wyjątek: ${String(e)}`);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      console.error('[API ERROR]', data);
+      alert(`Błąd generowania: ${data?.error ?? res.status}\n${data?.details ?? ''}`);
+      return;
     }
-  };
+
+    // Oczekujemy, że API zwraca zewnętrzny URL obrazka (tak jak dotąd: data.imageUrl)
+    const remoteUrl = data?.imageUrl;
+    if (!remoteUrl) {
+      console.log('[API OK, brak imageUrl] data=', data);
+      alert('API nie zwróciło imageUrl (sprawdź konsolę).');
+      return;
+    }
+
+    // 2) Pobierz obrazek jako blob → ArrayBuffer
+    const imgResp = await fetch(remoteUrl);
+    const blob = await imgResp.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+
+    // 3) Ścieżka w Storage: images/<UID>/<losowe>.png
+    const filePath = `${user.id}/${crypto.randomUUID()}.png`;
+
+    // 4) Upload do prywatnego bucketa "images"
+    const { error: upErr } = await supabase
+      .storage
+      .from('images')
+      .upload(filePath, arrayBuffer, { contentType: 'image/png' });
+    if (upErr) throw upErr;
+
+    // 5) Dodaj rekord w tabeli projects
+    const { error: insErr } = await supabase.from('projects').insert({
+      user_id: user.id,
+      user_email: user.email,
+      prompt,
+      image_url: filePath,    // zapisujemy ŚCIEŻKĘ w storage, nie pełny URL
+    });
+    if (insErr) throw insErr;
+
+    // 6) Zrób podpisany URL do pokazania w UI (bucket jest prywatny)
+    const { data: signed } = await supabase
+      .storage
+      .from('images')
+      .createSignedUrl(filePath, 60 * 60); // ważny 1h
+    const viewUrl = signed?.signedUrl ?? '';
+
+    // 7) Aktualizuj UI
+    setProjects(p => [{
+      id: crypto.randomUUID(),
+      imageUrl: viewUrl,
+      prompt,
+      user: user.email,
+    }, ...p]);
+
+    setPrompt('');
+  } catch (e) {
+    console.error(e);
+    alert(`Wyjątek: ${String(e)}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // --- LOGOWANIE ---
 
