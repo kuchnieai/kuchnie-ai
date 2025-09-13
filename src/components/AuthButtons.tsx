@@ -2,17 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { ensureProfile, type Profile } from '@/lib/profile';
 
 export default function AuthButtons() {
-  const [user, setUser] = useState<null | { email?: string }>(null);
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
+    const handleUser = async (u: any) => {
+      setUser(u);
+      if (u) {
+        const p = await ensureProfile(u.id);
+        setProfile(p);
+      } else {
+        setProfile(null);
+      }
+    };
+
     // pobierz użytkownika przy starcie
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    supabase.auth.getUser().then(({ data }) => handleUser(data.user ?? null));
 
     // słuchaj zmian sesji (login/logout)
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      handleUser(session?.user ?? null);
     });
 
     return () => {
@@ -39,7 +51,7 @@ export default function AuthButtons() {
   if (user) {
     return (
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span>Zalogowany: {user.email}</span>
+        <span>Zalogowany: {profile?.nick}</span>
         <button onClick={signOut}>Wyloguj</button>
       </div>
     );
