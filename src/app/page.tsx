@@ -5,6 +5,14 @@ import { supabase } from '@/lib/supabaseClient';
 
 type Project = { id: string; imageUrl: string; prompt: string; user: string };
 
+// drobny fallback dla starszych przeglądarek
+function uuidish() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -22,7 +30,7 @@ export default function Home() {
     };
   }, []);
 
-  // --- PO ZALOGOWANIU WCZYTAJ MOJE PROJEKTY ---
+  // --- PO ZALOGOWANIU: WCZYTAJ MOJE PROJEKTY ---
   useEffect(() => {
     const load = async () => {
       if (!user) {
@@ -54,7 +62,7 @@ export default function Home() {
           continue;
         }
 
-        // iOS-friendly: w razie czego dopniemy download=1
+        // iOS-friendly: dopnij ?download=1 (zmusza Safari do "pobrania")
         const viewUrl = signed?.signedUrl
           ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
           : '';
@@ -86,7 +94,7 @@ export default function Home() {
 
     setLoading(true);
     try {
-      // 1) Wywołaj API generowania (jak dotąd)
+      // 1) Wywołaj API generowania
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,28 +114,42 @@ export default function Home() {
         return;
       }
 
-      // 2) Pobierz obraz przez NASZE proxy (fix iOS/CORS).
-      //    Jeżeli iOS nadal rzuci TypeError: Load failed – spróbujemy fallback bezpośredni.
+      // 2) Pobierz obraz → obsłuż oba przypadki:
+      //    a) data:image/...;base64,...
+      //    b) zwykły https (przez nasze proxy)
+      let blob: Blob;
       let contentType = 'image/png';
-      let arrayBuffer: ArrayBuffer;
 
-      try {
-        const proxyResp = await fetch(
+      if (remoteUrl.startsWith('data:')) {
+        // data URL
+        const m = remoteUrl.match(/^data:([^;]+);base64,(.*)$/);
+        if (!m) throw new Error('Invalid data URL from /api/generate');
+        contentType = m[1] || 'image/png';
+        const b64 = m[2];
+
+        // base64 -> Uint8Array -> Blob
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        blob = new Blob([bytes], { type: contentType });
+      } else {
+        // https -> pobierz przez proxy (fix iOS/CORS)
+        let resp = await fetch(
           `/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`,
           { cache: 'no-store' }
         );
-        if (!proxyResp.ok) throw new Error(`proxy status ${proxyResp.status}`);
-        contentType = proxyResp.headers.get('content-type') ?? contentType;
-        arrayBuffer = await proxyResp.arrayBuffer();
-      } catch (_proxyErr) {
-        // Fallback (gdyby proxy nie pykło)
-        const directResp = await fetch(remoteUrl, { cache: 'no-store' });
-        if (!directResp.ok) throw new Error(`direct status ${directResp.status}`);
-        contentType = directResp.headers.get('content-type') ?? contentType;
-        arrayBuffer = await directResp.arrayBuffer();
-      }
 
-      const blob = new Blob([arrayBuffer], { type: contentType });
+        // awaryjny fallback gdyby proxy zwróciło błąd
+        if (!resp.ok) {
+          console.warn('[proxy failed]', resp.status, '— trying direct fetch');
+          resp = await fetch(remoteUrl, { cache: 'no-store' });
+          if (!resp.ok) throw new Error(`Load failed (${resp.status})`);
+        }
+
+        contentType = resp.headers.get('content-type') ?? contentType;
+        const buf = await resp.arrayBuffer();
+        blob = new Blob([buf], { type: contentType });
+      }
 
       // 3) Rozszerzenie na podstawie content-type
       const ext =
@@ -136,7 +158,7 @@ export default function Home() {
         contentType.includes('png')  ? 'png'  : 'bin';
 
       // 4) Ścieżka: images/<UID>/<losowe>.<ext>
-      const filePath = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const filePath = `${user.id}/${uuidish()}.${ext}`;
 
       // 5) Upload do prywatnego bucketa
       const { error: upErr } = await supabase
@@ -154,7 +176,7 @@ export default function Home() {
       });
       if (insErr) throw insErr;
 
-      // 7) Podpisany URL (na podgląd) – z dopinką download=1 (iOS)
+      // 7) Podpisany URL (na podgląd) – z dopinką ?download=1 (iOS)
       const { data: signed } = await supabase
         .storage
         .from('images')
@@ -166,7 +188,7 @@ export default function Home() {
 
       // 8) UI
       setProjects(p => [{
-        id: crypto.randomUUID(),
+        id: uuidish(),
         imageUrl: viewUrl,
         prompt,
         user: user.email,
