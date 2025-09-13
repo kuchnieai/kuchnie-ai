@@ -25,6 +25,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
 
   // --- SESJA ---
   useEffect(() => {
@@ -288,7 +289,8 @@ export default function Home() {
             <img
               src={p.imageUrl}
               alt={p.prompt}
-              className="w-full h-48 object-cover"
+              className="w-full h-48 object-cover cursor-pointer"
+              onClick={() => setFullscreenUrl(p.imageUrl)}
               onError={(e) => {
                 const el = e.currentTarget;
                 if (!el.src.includes('download=1')) {
@@ -312,6 +314,19 @@ export default function Home() {
           </figure>
         ))}
       </section>
+      {fullscreenUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
+          onClick={() => setFullscreenUrl(null)}
+        >
+          <img
+            src={fullscreenUrl}
+            alt="Pełny ekran"
+            className="max-w-full max-h-full"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </main>
   );
 }
