@@ -425,9 +425,12 @@ export default function Home() {
       {projects.length === 0 ? (
         <p className="text-gray-500">Na razie pusto – wygeneruj coś!</p>
       ) : (
-        <section className="grid grid-cols-2 md:grid-cols-3 gap-1">
+        <section className="columns-2 md:columns-3 gap-1">
           {projects.map((p, i) => (
-            <figure key={p.id} className="relative">
+            <figure
+              key={p.id}
+              className="mb-1 break-inside-avoid relative"
+            >
               <img
                 src={p.imageUrl}
                 alt={p.prompt}
