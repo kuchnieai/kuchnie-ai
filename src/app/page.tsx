@@ -20,6 +20,11 @@ function uuidish() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function truncatePrompt(text: string, wordLimit = 5): string {
+  const words = text.trim().split(/\s+/);
+  return words.slice(0, wordLimit).join(' ') + (words.length > wordLimit ? '…' : '');
+}
+
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -379,7 +384,7 @@ export default function Home() {
               }}
             />
             <figcaption className="p-2 text-sm pr-16">
-              <strong className="block">{p.prompt}</strong>
+              <strong className="block">{truncatePrompt(p.prompt, 5)}</strong>
             </figcaption>
           </figure>
         ))}
@@ -404,6 +409,9 @@ export default function Home() {
             onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           />
+          <div className="absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words">
+            {projects[fullscreenIndex].prompt}
+          </div>
           <div className="absolute bottom-4 right-4 flex gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
