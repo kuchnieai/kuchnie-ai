@@ -332,7 +332,7 @@ export default function Home() {
         )}
 
         {projects.map((p, i) => (
-          <figure key={p.id} className="border rounded overflow-hidden">
+          <figure key={p.id} className="relative border rounded overflow-hidden">
             <img
               src={p.imageUrl}
               alt={p.prompt}
@@ -345,19 +345,17 @@ export default function Home() {
                 }
               }}
             />
-            <figcaption className="p-2 text-sm flex items-center justify-between gap-2">
-              <div>
-                <strong className="block">{p.prompt}</strong>
-                <p className="text-xs opacity-70">by {p.user}</p>
-              </div>
-              <button
-                onClick={() => handleDelete(p)}
-                className="text-red-600 border border-red-500 rounded px-2 py-1 text-xs"
-                title="Usuń projekt"
-              >
-                Usuń
-              </button>
+            <figcaption className="p-2 text-sm pr-16">
+              <strong className="block">{p.prompt}</strong>
+              <p className="text-xs opacity-70">by {p.user}</p>
             </figcaption>
+            <button
+              onClick={() => handleDelete(p)}
+              className="absolute bottom-2 right-2 text-red-600 border border-red-500 rounded px-2 py-1 text-xs bg-white"
+              title="Usuń projekt"
+            >
+              Usuń
+            </button>
           </figure>
         ))}
       </section>
