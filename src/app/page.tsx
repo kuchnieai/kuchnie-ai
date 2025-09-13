@@ -5,8 +5,8 @@ import { supabase } from '@/lib/supabaseClient';
 
 type Project = {
   id: string;            // id rekordu w DB
-  imageUrl: string;      // podpisany URL do <img> (albo ?download=1)
-  storagePath: string;   // ścieżka w Storage (np. "<uid>/<uuid>.png")
+  imageUrl: string;      // podpisany URL do podglądu
+  storagePath: string;   // ścieżka w Storage (images/<uid>/<uuid>.ext)
   prompt: string;
   user: string;
 };
@@ -23,6 +23,7 @@ export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set()); // prompty rozwinięte
 
   // --- SESJA ---
   useEffect(() => {
@@ -30,18 +31,13 @@ export default function Home() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-    return () => {
-      sub.subscription.unsubscribe();
-    };
+    return () => { sub.subscription.unsubscribe(); };
   }, []);
 
-  // --- PO ZALOGOWANIU: WCZYTAJ MOJE PROJEKTY ---
+  // --- WCZYTAJ MOJE PROJEKTY ---
   useEffect(() => {
     const load = async () => {
-      if (!user) {
-        setProjects([]);
-        return;
-      }
+      if (!user) { setProjects([]); return; }
 
       const { data, error } = await supabase
         .from('projects')
@@ -49,24 +45,15 @@ export default function Home() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('[projects/select]', error);
-        return;
-      }
+      if (error) { console.error('[projects/select]', error); return; }
 
       const out: Project[] = [];
       for (const row of data ?? []) {
         const filePath = row.image_url as string;
 
-        const { data: signed, error: sErr } = await supabase
-          .storage
-          .from('images')
-          .createSignedUrl(filePath, 60 * 60);
-
-        if (sErr) {
-          console.error('[signedUrl]', sErr, filePath);
-          continue;
-        }
+        const { data: signed, error: sErr } =
+          await supabase.storage.from('images').createSignedUrl(filePath, 60 * 60);
+        if (sErr) { console.error('[signedUrl]', sErr, filePath); continue; }
 
         const viewUrl = signed?.signedUrl
           ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
@@ -82,36 +69,29 @@ export default function Home() {
       }
       setProjects(out);
     };
-
     load();
   }, [user]);
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
-    console.log('[UI] Generuj klik');
     if (!user) { alert('Zaloguj się!'); return; }
     if (!prompt.trim()) { alert('Wpisz opis kuchni'); return; }
 
     setLoading(true);
     try {
-      // 1) Wywołaj API generowania
+      // 1) wygeneruj
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
-
       const data = await res.json().catch(() => ({} as any));
-      if (!res.ok) {
-        console.error('[API ERROR]', data);
-        alert(`Błąd generowania: ${data?.error ?? res.status}\n${data?.details ?? ''}`);
-        return;
-      }
+      if (!res.ok) { console.error('[API ERROR]', data); alert(`Błąd generowania: ${data?.error ?? res.status}`); return; }
 
       const remoteUrl: string | undefined = data?.imageUrl;
       if (!remoteUrl) { alert('API nie zwróciło imageUrl'); return; }
 
-      // 2) data:URL (base64) albo https (proxy)
+      // 2) data:URL lub HTTP przez proxy
       let blob: Blob;
       let contentType = 'image/png';
 
@@ -125,60 +105,36 @@ export default function Home() {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         blob = new Blob([bytes], { type: contentType });
       } else {
-        let resp = await fetch(
-          `/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`,
-          { cache: 'no-store' }
-        );
-        if (!resp.ok) {
-          console.warn('[proxy failed]', resp.status, '— trying direct fetch');
-          resp = await fetch(remoteUrl, { cache: 'no-store' });
-          if (!resp.ok) throw new Error(`Load failed (${resp.status})`);
-        }
+        let resp = await fetch(`/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`, { cache: 'no-store' });
+        if (!resp.ok) { resp = await fetch(remoteUrl, { cache: 'no-store' }); if (!resp.ok) throw new Error(`Load failed (${resp.status})`); }
         contentType = resp.headers.get('content-type') ?? contentType;
         const buf = await resp.arrayBuffer();
         blob = new Blob([buf], { type: contentType });
       }
 
-      // 3) Rozszerzenie
-      const ext =
-        contentType.includes('jpeg') ? 'jpg' :
-        contentType.includes('webp') ? 'webp' :
-        contentType.includes('png')  ? 'png'  : 'bin';
+      // 3) rozszerzenie
+      const ext = contentType.includes('jpeg') ? 'jpg' :
+                  contentType.includes('webp') ? 'webp' :
+                  contentType.includes('png')  ? 'png'  : 'bin';
 
-      // 4) Ścieżka: images/<UID>/<losowe>.<ext>
+      // 4) upload
       const filePath = `${user.id}/${uuidish()}.${ext}`;
-
-      // 5) Upload
-      const { error: upErr } = await supabase
-        .storage
-        .from('images')
-        .upload(filePath, blob, { contentType });
+      const { error: upErr } = await supabase.storage.from('images').upload(filePath, blob, { contentType });
       if (upErr) throw upErr;
 
-      // 6) INSERT + zwróć id
+      // 5) insert
       const { data: ins, error: insErr } = await supabase
         .from('projects')
-        .insert({
-          user_id: user.id,
-          user_email: user.email,
-          prompt,
-          image_url: filePath,
-        })
+        .insert({ user_id: user.id, user_email: user.email, prompt, image_url: filePath })
         .select('id')
         .single();
       if (insErr) throw insErr;
 
-      // 7) Podpisany URL (iOS-friendly)
-      const { data: signed } = await supabase
-        .storage
-        .from('images')
-        .createSignedUrl(filePath, 60 * 60);
+      // 6) signed URL (iOS-friendly)
+      const { data: signed } = await supabase.storage.from('images').createSignedUrl(filePath, 60 * 60);
+      const viewUrl = signed?.signedUrl ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1` : '';
 
-      const viewUrl = signed?.signedUrl
-        ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
-        : '';
-
-      // 8) UI
+      // 7) UI
       setProjects(p => [{
         id: ins?.id ?? uuidish(),
         imageUrl: viewUrl,
@@ -186,7 +142,6 @@ export default function Home() {
         prompt,
         user: user.email,
       }, ...p]);
-
       setPrompt('');
     } catch (e) {
       console.error(e);
@@ -196,109 +151,109 @@ export default function Home() {
     }
   };
 
-  // --- USUWANIE PROJEKTU (plik + rekord) ---
+  // --- USUWANIE (Storage + DB) ---
   const handleDelete = async (proj: Project) => {
     if (!confirm('Usunąć ten projekt?')) return;
 
-    // 1) usuń plik ze Storage
     const { error: sErr } = await supabase.storage.from('images').remove([proj.storagePath]);
-    if (sErr) {
-      console.error('[storage.remove]', sErr);
-      alert(`Błąd usuwania pliku: ${sErr.message ?? sErr}`);
-      return;
-    }
+    if (sErr) { console.error('[storage.remove]', sErr); alert(`Błąd usuwania pliku: ${sErr.message ?? sErr}`); return; }
 
-    // 2) usuń rekord z bazy
     const { error: dErr } = await supabase.from('projects').delete().eq('id', proj.id);
-    if (dErr) {
-      console.error('[projects/delete]', dErr);
-      alert(`Błąd usuwania rekordu: ${dErr.message ?? dErr}`);
-      return;
-    }
+    if (dErr) { console.error('[projects/delete]', dErr); alert(`Błąd usuwania rekordu: ${dErr.message ?? dErr}`); return; }
 
-    // 3) odśwież UI
     setProjects(prev => prev.filter(p => p.id !== proj.id));
+    setExpanded(prev => { const n = new Set(prev); n.delete(proj.id); return n; });
   };
 
-  // --- LOGOWANIE ---
-  const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` },
+  const toggleExpand = (id: string) => {
+    setExpanded(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
     });
   };
-  const signInWithEmail = async () => {
-    const email = window.prompt('Podaj maila (Supabase magic link):') || '';
-    if (!email) return;
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    alert(error ? 'Błąd logowania' : 'Sprawdź maila i kliknij link.');
-  };
-  const signOut = async () => { await supabase.auth.signOut(); setUser(null); };
 
   return (
-    <main className="min-h-screen p-6">
-      <header className="mb-6 flex justify-between">
-        <h1 className="text-2xl font-bold">kuchnie.ai</h1>
-        <div className="flex items-center gap-2">
-          {user ? (
-            <>
-              <span className="mr-2">{user.email}</span>
-              <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
-            </>
-          ) : (
-            <>
-              <button onClick={signInWithGoogle} className="border rounded px-3 py-1">Zaloguj przez Google</button>
-              <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-70">mailem (fallback)</button>
-            </>
-          )}
-        </div>
-      </header>
-
-      <section className="mb-4 flex gap-2">
+    <main className="min-h-screen p-4 md:p-6">
+      <header className="mb-4 md:mb-6 flex gap-2">
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Opisz swoją kuchnię…"
-          className="flex-1 border rounded px-3 py-2"
+          className="flex-1 border rounded-lg px-3 py-2"
         />
-        <button onClick={handleGenerate} disabled={loading} className="border rounded px-3 py-2">
-          {loading ? 'Generuję...' : 'Generuj'}
+        <button onClick={handleGenerate} disabled={loading} className="border rounded-lg px-4 py-2 whitespace-nowrap">
+          {loading ? 'Generuję…' : 'Generuj'}
         </button>
-      </section>
+      </header>
 
       <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {projects.length === 0 && (
           <p className="col-span-full text-gray-500">Na razie pusto – wygeneruj coś!</p>
         )}
 
-        {projects.map((p) => (
-          <figure key={p.id} className="border rounded overflow-hidden">
-            <img
-              src={p.imageUrl}
-              alt={p.prompt}
-              className="w-full h-48 object-cover"
-              onError={(e) => {
-                const el = e.currentTarget;
-                if (!el.src.includes('download=1')) {
-                  el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
-                }
-              }}
-            />
-            <figcaption className="p-2 text-sm flex items-center justify-between gap-2">
-              <div>
-                <strong className="block">{p.prompt}</strong>
-                <p className="text-xs opacity-70">by {p.user}</p>
-              </div>
+        {projects.map((p) => {
+          const isOpen = expanded.has(p.id);
+          const clampStyle = isOpen ? {} : {
+            display: '-webkit-box',
+            WebkitLineClamp: 2 as unknown as string, // TS hack
+            WebkitBoxOrient: 'vertical' as unknown as string,
+            overflow: 'hidden',
+          };
+
+          return (
+            <figure key={p.id} className="relative border rounded-xl overflow-hidden shadow-sm bg-white">
+              {/* Delete button – stała pozycja w rogu */}
               <button
                 onClick={() => handleDelete(p)}
-                className="text-red-600 border border-red-500 rounded px-2 py-1 text-xs"
                 title="Usuń projekt"
+                className="absolute top-2 right-2 z-10 bg-white/95 hover:bg-white text-red-600 border border-red-500 rounded-md px-2 py-1 text-xs"
               >
                 Usuń
               </button>
-            </figcaption>
-          </figure>
-        ))}
+
+              <img
+                src={p.imageUrl}
+                alt={p.prompt}
+                className="w-full aspect-[4/3] object-cover"
+                onError={(e) => {
+                  const el = e.currentTarget;
+                  if (!el.src.includes('download=1')) {
+                    el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
+                  }
+                }}
+              />
+
+              <figcaption className="p-3">
+                <p
+                  className="font-semibold leading-snug cursor-pointer"
+                  style={clampStyle}
+                  onClick={() => toggleExpand(p.id)}
+                  title={isOpen ? 'Zwiń' : 'Pokaż więcej'}
+                >
+                  {p.prompt}
+                </p>
+                <div className="mt-1 text-xs opacity-70">by {p.user}</div>
+                {!isOpen && (
+                  <button
+                    className="mt-1 text-xs underline opacity-70"
+                    onClick={() => toggleExpand(p.id)}
+                  >
+                    Pokaż więcej
+                  </button>
+                )}
+                {isOpen && (
+                  <button
+                    className="mt-1 text-xs underline opacity-70"
+                    onClick={() => toggleExpand(p.id)}
+                  >
+                    Zwiń
+                  </button>
+                )}
+              </figcaption>
+            </figure>
+          );
+        })}
       </section>
     </main>
   );
