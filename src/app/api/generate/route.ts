@@ -11,7 +11,7 @@ function extractTextFromCandidates(resp: any): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt } = await req.json();
+    const { prompt, aspectRatio } = await req.json();
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ error: 'Brak promptu' }, { status: 400 });
     }
@@ -59,6 +59,11 @@ export async function POST(req: NextRequest) {
       process.env.IMAGEN_API_URL ||
       `https://generativelanguage.googleapis.com/v1beta/models/${imagenModel}:predict`;
 
+    const params: Record<string, any> = { sampleCount: 1 };
+    if (aspectRatio && typeof aspectRatio === 'string') {
+      params.aspectRatio = aspectRatio;
+    }
+
     const gen = await fetch(imagenUrl, {
       method: 'POST',
       headers: {
@@ -68,14 +73,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         // REST dla Imagen używa 'instances' + 'parameters'
         instances: [{ prompt: finalPrompt }],
-        parameters: {
-          // liczba obrazów (1–4), ratio/rozmiar możesz później podać z UI
-          sampleCount: 1,
-          // przykładowe parametry:
-          // aspectRatio: '16:9',
-          // sampleImageSize: '1K', // dla Standard/Ultra ('1K' lub '2K')
-          // personGeneration: 'allow_adult'
-        }
+        parameters: params,
       }),
     });
 
