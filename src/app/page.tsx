@@ -23,10 +23,17 @@ export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
+    if (saved) setAspectRatio(saved);
+  }, []);
 
   const showPrev = () => {
     setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
@@ -46,6 +53,14 @@ export default function Home() {
       diff > 0 ? showPrev() : showNext();
     }
     touchStartX.current = null;
+  };
+
+  const selectAspect = (ratio: string) => {
+    setAspectRatio(ratio);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aspectRatio', ratio);
+    }
+    setMenuOpen(false);
   };
 
   // --- SESJA ---
@@ -150,7 +165,7 @@ export default function Home() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, aspectRatio }),
       });
 
       const data = await res.json().catch(() => ({} as any));
@@ -345,7 +360,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="mb-4 flex gap-2">
+      <section className="mb-4 flex gap-2 items-start">
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -355,6 +370,37 @@ export default function Home() {
         <button onClick={handleGenerate} disabled={loading} className="border rounded px-3 py-2">
           {loading ? 'Generuję...' : 'Generuj'}
         </button>
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="border rounded px-3 py-2"
+            aria-label="Opcje orientacji"
+          >
+            ☰
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow">
+              <button
+                onClick={() => selectAspect('9:16')}
+                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '9:16' ? 'font-bold' : ''}`}
+              >
+                Pionowe
+              </button>
+              <button
+                onClick={() => selectAspect('1:1')}
+                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '1:1' ? 'font-bold' : ''}`}
+              >
+                Kwadrat
+              </button>
+              <button
+                onClick={() => selectAspect('16:9')}
+                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '16:9' ? 'font-bold' : ''}`}
+              >
+                Poziome
+              </button>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
