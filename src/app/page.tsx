@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { ensureProfile, type Profile } from '@/lib/profile';
 
 type Project = {
   id: string;            // id rekordu w DB
@@ -23,12 +24,23 @@ export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   // --- SESJA ---
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    const handleUser = async (u: any) => {
+      setUser(u);
+      if (u) {
+        const p = await ensureProfile(u.id);
+        setProfile(p);
+      } else {
+        setProfile(null);
+      }
+    };
+
+    supabase.auth.getUser().then(({ data }) => handleUser(data.user ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      handleUser(session?.user ?? null);
     });
     return () => {
       sub.subscription.unsubscribe();
@@ -242,7 +254,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <span className="mr-2">{user.email}</span>
+              <span className="mr-2">{profile?.nick}</span>
               <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
             </>
           ) : (
