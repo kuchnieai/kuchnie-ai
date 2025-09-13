@@ -395,7 +395,7 @@ export default function Home() {
                 onClick={() => selectAspect('9:16')}
                 className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '9:16' ? 'font-bold' : ''}`}
               >
-                Pionowe
+                Pion
               </button>
               <button
                 onClick={() => selectAspect('1:1')}
@@ -407,7 +407,7 @@ export default function Home() {
                 onClick={() => selectAspect('16:9')}
                 className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '16:9' ? 'font-bold' : ''}`}
               >
-                Poziome
+                Poziom
               </button>
             </div>
           )}
