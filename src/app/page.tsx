@@ -436,9 +436,6 @@ export default function Home() {
                 }
               }}
             />
-            <figcaption className="p-2 text-sm pr-16">
-              <strong className="block">{truncatePrompt(p.prompt, 5)}</strong>
-            </figcaption>
           </figure>
         ))}
       </section>
