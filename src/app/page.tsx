@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { ensureProfile, editProfile, type Profile } from '@/lib/profile';
 
@@ -320,8 +319,7 @@ export default function Home() {
   return (
     <main className="min-h-screen p-6">
       <header className="mb-6 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="kuchnie.ai logo" width={24} height={24} />
+        <div className="flex items-center">
           <h1 className="text-2xl font-bold">kuchnie.ai</h1>
         </div>
         <div className="flex items-center gap-2">
