@@ -347,7 +347,6 @@ export default function Home() {
             />
             <figcaption className="p-2 text-sm pr-16">
               <strong className="block">{p.prompt}</strong>
-              <p className="text-xs opacity-70">by {p.user}</p>
             </figcaption>
             <button
               onClick={() => handleDelete(p)}
