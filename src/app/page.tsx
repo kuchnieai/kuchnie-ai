@@ -349,13 +349,22 @@ export default function Home() {
               <strong className="block">{p.prompt}</strong>
               <p className="text-xs opacity-70">by {p.user}</p>
             </figcaption>
-            <button
-              onClick={() => handleDelete(p)}
-              className="absolute bottom-2 right-2 text-red-600 border border-red-500 rounded px-2 py-1 text-xs bg-white"
-              title="Usuń projekt"
-            >
-              Usuń
-            </button>
+            <div className="absolute bottom-2 right-2 flex gap-2">
+              <a
+                href={p.imageUrl}
+                download
+                className="text-black border border-black rounded px-2 py-1 text-xs bg-white"
+              >
+                Pobierz
+              </a>
+              <button
+                onClick={() => handleDelete(p)}
+                className="text-red-600 border border-red-500 rounded px-2 py-1 text-xs bg-white"
+                title="Usuń projekt"
+              >
+                Usuń
+              </button>
+            </div>
           </figure>
         ))}
       </section>
