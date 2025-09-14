@@ -610,7 +610,7 @@ export default function Home() {
             ›
           </button>
           <div
-            className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
+            className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded-md break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
             style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -625,14 +625,14 @@ export default function Home() {
           <div className="absolute bottom-4 right-4 flex gap-2" style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}>
             <button
               onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
-              className="text-white rounded px-3 py-1 text-sm bg-black/60"
+              className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
               title="Zapisz obraz w galerii"
             >
               Pobierz
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); handleDelete(projects[fullscreenIndex]); setFullscreenIndex(null); }}
-              className="text-white rounded px-3 py-1 text-sm bg-black/60"
+              className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
               title="Usuń projekt"
             >
               Usuń
