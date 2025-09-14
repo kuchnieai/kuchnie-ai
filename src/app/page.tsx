@@ -622,28 +622,28 @@ export default function Home() {
                 <line x1="17" y1="16" x2="23" y2="16" />
               </svg>
             </button>
-            <button
-              onClick={handleGenerate}
-              disabled={
-                loading || (prompt.trim().length === 0 && options.length === 0)
-              }
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 disabled:opacity-50"
-              aria-label="Wyślij"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
+            {prompt.trim().length > 0 && (
+              <button
+                onClick={handleGenerate}
+                disabled={loading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 disabled:opacity-50"
+                aria-label="Wyślij"
               >
-                <path d="M22 2L11 13" />
-                <path d="M22 2L15 22l-4-9-9-4 20-7z" />
-              </svg>
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-5 h-5"
+                >
+                  <path d="M22 2L11 13" />
+                  <path d="M22 2L15 22l-4-9-9-4 20-7z" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
