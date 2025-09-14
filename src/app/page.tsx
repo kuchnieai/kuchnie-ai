@@ -477,7 +477,16 @@ export default function Home() {
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           />
           <div className="absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words">
-            {projects[fullscreenIndex].prompt}
+            <p>{projects[fullscreenIndex].prompt}</p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
+              }}
+              className="mt-2 font-bold"
+            >
+              copy prompt
+            </button>
           </div>
           <div className="absolute bottom-4 right-4 flex gap-2">
             <button
