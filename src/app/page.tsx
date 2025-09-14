@@ -733,33 +733,37 @@ export default function Home() {
             ›
           </button>
           <div
-            className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded-md break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
+            className="absolute bottom-4 left-4 right-4 flex flex-col gap-2"
             style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1000);
-            }}
           >
-            <p>{projects[fullscreenIndex].prompt}</p>
-            <p className="mt-2">Copy prompt</p>
-          </div>
-          <div className="absolute bottom-4 right-4 flex gap-2" style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
-              className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
-              title="Zapisz obraz w galerii"
+            <div
+              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1000);
+              }}
             >
-              Pobierz
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleDelete(projects[fullscreenIndex]); setFullscreenIndex(null); }}
-              className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
-              title="Usuń projekt"
-            >
-              Usuń
-            </button>
+              <p>{projects[fullscreenIndex].prompt}</p>
+              <p className="mt-2">Copy prompt</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
+                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                title="Zapisz obraz w galerii"
+              >
+                Pobierz
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDelete(projects[fullscreenIndex]); setFullscreenIndex(null); }}
+                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                title="Usuń projekt"
+              >
+                Usuń
+              </button>
+            </div>
           </div>
         </div>
       )}
