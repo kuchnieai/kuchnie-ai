@@ -21,6 +21,7 @@ function uuidish() {
 
 export default function Home() {
   const [prompt, setPrompt] = useState('');
+  const promptRef = useRef<HTMLTextAreaElement>(null);
   const [options, setOptions] = useState<string[]>([]);
   const featureOptions = [
     'Lodówka z prawej',
@@ -45,6 +46,7 @@ export default function Home() {
       return next;
     });
   };
+
   const [projects, setProjects] = useState<Project[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = sessionStorage.getItem('projectsCache');
@@ -58,6 +60,7 @@ export default function Home() {
     }
     return [];
   });
+
   const [loading, setLoading] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('4:3');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -80,6 +83,14 @@ export default function Home() {
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 0;
   const bgOpacity = 1 - Math.min(1, (dragOffset.y / (screenH || 1)) * 2);
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+
+  useEffect(() => {
+    if (promptRef.current) {
+      const el = promptRef.current;
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [prompt]);
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
@@ -541,7 +552,8 @@ export default function Home() {
       <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <input
+            <textarea
+              ref={promptRef}
               value={prompt}
               onChange={(e) => {
                 const value = e.target.value;
@@ -550,7 +562,8 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className="w-full rounded-full px-4 py-2 pr-10 bg-[#f2f2f2] border-none"
+              rows={1}
+              className="w-full rounded-xl px-4 py-2 pr-10 bg-[#f2f2f2] border-none resize-none overflow-hidden"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
@@ -574,8 +587,8 @@ export default function Home() {
                 <line x1="20" y1="21" x2="20" y2="16" />
                 <line x1="20" y1="12" x2="20" y2="3" />
                 <line x1="1" y1="14" x2="7" y2="14" />
-                <line x1="9" y1="8" x2="15" y2="8" />
-                <line x1="17" y1="16" x2="23" y2="16" />
+                <line x1="9" y1="8" x2="15" y1="8" />
+                <line x1="17" y1="16" x2="23" y1="16" />
               </svg>
             </button>
           </div>
@@ -619,7 +632,7 @@ export default function Home() {
             <button
               onClick={() => selectAspect('3:4')}
               className={`px-3 py-1 rounded-full text-sm ${
-                aspectRatio === '3:4' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                aspectRatio === '3:4' ? 'bg-blue-2 00' : 'bg-[#f2f2f2]'
               }`}
             >
               Pion 4:3
