@@ -601,7 +601,7 @@ export default function Home() {
 
       {/* Sliding menu */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
+        className={`fixed bottom-16 left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
           menuOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
