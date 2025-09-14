@@ -58,6 +58,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const hasPrompt = prompt.trim().length > 0;
 
   // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
   useEffect(() => {
@@ -594,11 +595,11 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className="w-full rounded-xl px-4 py-3 pr-20 bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto"
+              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto`}
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="absolute right-12 top-1/2 -translate-y-1/2 p-2"
+              className={`absolute ${hasPrompt ? 'right-12' : 'right-2'} top-1/2 -translate-y-1/2 p-2`}
               aria-label="Ustawienia"
             >
               <svg
@@ -622,7 +623,7 @@ export default function Home() {
                 <line x1="17" y1="16" x2="23" y2="16" />
               </svg>
             </button>
-            {prompt.trim().length > 0 && (
+            {hasPrompt && (
               <button
                 onClick={handleGenerate}
                 disabled={loading}
