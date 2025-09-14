@@ -35,6 +35,8 @@ export default function Home() {
   const [dragTransition, setDragTransition] = useState('');
   const dragAxis = useRef<'x' | 'y' | null>(null);
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 0;
+  const screenH = typeof window !== 'undefined' ? window.innerHeight : 0;
+  const bgOpacity = 1 - Math.min(1, dragOffset.y / (screenH || 1));
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
@@ -486,7 +488,8 @@ export default function Home() {
 
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
-          className="fixed inset-0 z-[60] bg-black overflow-hidden"
+          className="fixed inset-0 z-[60] overflow-hidden"
+          style={{ backgroundColor: `rgba(0,0,0,${bgOpacity})` }}
           onClick={() => setFullscreenIndex(null)}
         >
           <div
