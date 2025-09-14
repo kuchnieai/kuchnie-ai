@@ -579,13 +579,15 @@ export default function Home() {
               </svg>
             </button>
           </div>
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="border rounded-full px-4 py-2"
-          >
-            {loading ? 'Generuję...' : 'Generuj'}
-          </button>
+          {prompt.trim().length > 0 && (
+            <button
+              onClick={handleGenerate}
+              disabled={loading}
+              className="border rounded-full px-4 py-2"
+            >
+              {loading ? 'Generuję...' : 'Generuj'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -658,16 +660,18 @@ export default function Home() {
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            setMenuOpen(false);
-            handleGenerate();
-          }}
-          disabled={loading}
-          className="border rounded-full px-4 py-2 mt-4"
-        >
-          {loading ? 'Generuję...' : 'Generuj'}
-        </button>
+        {prompt.trim().length > 0 && (
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              handleGenerate();
+            }}
+            disabled={loading}
+            className="border rounded-full px-4 py-2 mt-4"
+          >
+            {loading ? 'Generuję...' : 'Generuj'}
+          </button>
+        )}
       </div>
 
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
