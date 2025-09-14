@@ -33,17 +33,9 @@ export default function Home() {
   ];
 
   const toggleOption = (opt: string) => {
-    setOptions(prev => {
-      const next = prev.includes(opt)
-        ? prev.filter(o => o !== opt)
-        : [...prev, opt];
-      setPrompt(prevPrompt => {
-        const parts = prevPrompt.split(',').map(p => p.trim());
-        const manual = parts.filter(p => !featureOptions.includes(p));
-        return [...manual, ...next].filter(Boolean).join(', ');
-      });
-      return next;
-    });
+    setOptions(prev =>
+      prev.includes(opt) ? prev.filter(o => o !== opt) : [...prev, opt]
+    );
   };
 
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -356,7 +348,10 @@ export default function Home() {
   const handleGenerate = async () => {
     console.log('[UI] Generuj klik]');
     if (!user) { alert('Zaloguj się!'); return; }
-    if (!prompt.trim()) { alert('Wpisz opis kuchni'); return; }
+    if (!prompt.trim() && options.length === 0) {
+      alert('Wpisz opis kuchni lub wybierz opcję');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -364,7 +359,7 @@ export default function Home() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio }),
+        body: JSON.stringify({ prompt, aspectRatio, options }),
       });
 
       const data = await res.json().catch(() => ({} as any));
@@ -375,6 +370,7 @@ export default function Home() {
       }
 
       const remoteUrl: string | undefined = data?.imageUrl;
+      const finalPrompt: string = data?.prompt ?? prompt;
       if (!remoteUrl) { alert('API nie zwróciło imageUrl'); return; }
 
       // 2) data:URL (base64) albo https (proxy)
@@ -427,7 +423,7 @@ export default function Home() {
         .insert({
           user_id: user.id,
           user_email: user.email,
-          prompt,
+          prompt: finalPrompt,
           image_url: filePath,
         })
         .select('id')
@@ -449,7 +445,7 @@ export default function Home() {
         id: ins?.id ?? uuidish(),
         imageUrl: viewUrl,
         storagePath: filePath,
-        prompt,
+        prompt: finalPrompt,
         user: user.email,
       }, ...p]);
 
@@ -597,7 +593,7 @@ export default function Home() {
               </svg>
             </button>
           </div>
-          {prompt.trim().length > 0 && (
+          {(prompt.trim().length > 0 || options.length > 0) && (
             <button
               onClick={handleGenerate}
               disabled={loading}
@@ -678,7 +674,7 @@ export default function Home() {
           </div>
         </div>
 
-        {prompt.trim().length > 0 && (
+        {(prompt.trim().length > 0 || options.length > 0) && (
           <button
             onClick={() => {
               setMenuOpen(false);
