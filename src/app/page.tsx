@@ -538,7 +538,7 @@ export default function Home() {
         </section>
       )}
 
-      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white">
+      <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <input
