@@ -549,8 +549,8 @@ export default function Home() {
                 const parts = value.split(',').map(p => p.trim());
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
-              placeholder="Opisz kuchnię"
-              className="w-full rounded-full px-4 py-2 pr-10 bg-[#f2f2f2] border-none"
+              placeholder="Opisz kuchnię..."
+              className="w-full rounded-full px-4 py-3 pr-10 bg-[#f2f2f2] border-none text-lg"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
