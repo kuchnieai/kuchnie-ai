@@ -601,7 +601,7 @@ export default function Home() {
             <button
               onClick={handleGenerate}
               disabled={loading}
-              className="border rounded-full px-4 py-2"
+              className={`rounded-full px-4 py-2 ${loading ? 'border-2 border-blue-500 pulse-border' : 'border'}`}
             >
               {loading ? 'Generuję...' : 'Generuj'}
             </button>
@@ -685,7 +685,7 @@ export default function Home() {
               handleGenerate();
             }}
             disabled={loading}
-            className="border rounded-full px-4 py-2 mt-4"
+            className={`rounded-full px-4 py-2 mt-4 ${loading ? 'border-2 border-blue-500 pulse-border' : 'border'}`}
           >
             {loading ? 'Generuję...' : 'Generuj'}
           </button>
@@ -767,6 +767,15 @@ export default function Home() {
           </div>
         </div>
       )}
+      <style jsx>{`
+        @keyframes pulse-border {
+          0%, 100% { border-color: rgba(59, 130, 246, 1); }
+          50% { border-color: rgba(59, 130, 246, 0); }
+        }
+        .pulse-border {
+          animation: pulse-border 1s ease-in-out infinite;
+        }
+      `}</style>
     </main>
   );
 }
