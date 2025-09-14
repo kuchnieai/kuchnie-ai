@@ -578,7 +578,7 @@ export default function Home() {
 
       <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
         <div className="flex items-stretch gap-2">
-          <div className="relative flex-1">
+          <div className={`relative flex-1 rounded-xl ${loading ? 'led-border' : ''}`}>
             <textarea
               ref={textareaRef}
               rows={1}
@@ -598,7 +598,7 @@ export default function Home() {
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="absolute right-9 top-1/2 -translate-y-1/2 p-2"
+              className="absolute right-12 top-1/2 -translate-y-1/2 p-2"
               aria-label="Ustawienia"
             >
               <svg
@@ -611,8 +611,15 @@ export default function Home() {
                 strokeLinejoin="round"
                 className="w-5 h-5"
               >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.4 9.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                <line x1="4" y1="21" x2="4" y2="14" />
+                <line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" />
+                <line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="1" y1="14" x2="7" y2="14" />
+                <line x1="9" y1="8" x2="15" y2="8" />
+                <line x1="17" y1="16" x2="23" y2="16" />
               </svg>
             </button>
             <button
@@ -620,9 +627,7 @@ export default function Home() {
               disabled={
                 loading || (prompt.trim().length === 0 && options.length === 0)
               }
-              className={`absolute right-1 top-1/2 -translate-y-1/2 p-2 disabled:opacity-50 ${
-                loading ? 'border-2 border-blue-500 pulse-border rounded-full' : ''
-              }`}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 disabled:opacity-50"
               aria-label="Wyślij"
             >
               <svg
@@ -794,12 +799,22 @@ export default function Home() {
         </div>
       )}
       <style jsx>{`
-        @keyframes pulse-border {
-          0%, 100% { border-color: rgba(59, 130, 246, 1); }
-          50% { border-color: rgba(59, 130, 246, 0); }
+        @keyframes led-border {
+          to { background-position: 200% 0; }
         }
-        .pulse-border {
-          animation: pulse-border 3s ease-in-out infinite;
+        .led-border::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          padding: 2px;
+          border-radius: inherit;
+          background: linear-gradient(90deg, transparent, #3b82f6, transparent, #3b82f6, transparent);
+          background-size: 200% 100%;
+          animation: led-border 4s linear infinite;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+                  mask-composite: exclude;
+          pointer-events: none;
         }
       `}</style>
     </main>
