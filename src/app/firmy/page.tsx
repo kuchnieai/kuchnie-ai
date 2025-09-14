@@ -17,7 +17,7 @@ const columns = [
   { key: "contact", label: "Akcje" },
 ];
 
-const companies = [
+const baseCompanies = [
   {
     name: "IZI KUCHNIE",
     city: "Gdańsk",
@@ -153,37 +153,51 @@ const companies = [
   },
 ];
 
+const additionalCompanies = Array.from({ length: 30 }, (_, i) => ({
+  name: `FIRMA ${i + 1}`,
+  city: "Warszawa",
+  promotion: "Promocja",
+  expires: `Jeszcze ${i + 5} dni`,
+  distance: `${10 + i} km`,
+  budget: "💲💲",
+  leadTime: "6-8 tyg",
+  rating: "8,0/10",
+  specialization: "Studio kuchni",
+  type: "na wymiar",
+  modules: "moduły",
+  installation: "Z montażem",
+  guarantee: "Gwar 2 lata",
+  appliances: "AGD",
+  project: "Projekt 0zł",
+  measurement: "Pomiar 0 zł",
+  contact: "Umów się",
+}));
+
+const companies = [...baseCompanies, ...additionalCompanies];
+
 export default function FirmyPage() {
   return (
     <main className="p-6 pb-24">
       <h1 className="text-2xl font-bold mb-4">Firmy</h1>
-      <div className="mx-auto max-w-[360px] border rounded overflow-x-auto">
-        <table className="min-w-max border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="sticky left-0 bg-white z-10 border px-2 py-1">Firma</th>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {companies.map((company) => (
+          <div
+            key={company.name}
+            className="border border-blue-200 rounded bg-white shadow-sm p-4"
+          >
+            <h2 className="text-lg font-semibold text-blue-700 mb-2">
+              {company.name}
+            </h2>
+            <ul className="text-sm text-gray-700 space-y-1">
               {columns.map((col) => (
-                <th key={col.key} className="border px-2 py-1 whitespace-nowrap">
-                  {col.label}
-                </th>
+                <li key={col.key} className="flex justify-between">
+                  <span className="font-medium">{col.label}:</span>
+                  <span>{company[col.key as keyof typeof company]}</span>
+                </li>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {companies.map((company) => (
-              <tr key={company.name}>
-                <td className="sticky left-0 bg-white z-10 border px-2 py-1 font-semibold">
-                  {company.name}
-                </td>
-                {columns.map((col) => (
-                  <td key={col.key} className="border px-2 py-1 whitespace-nowrap">
-                    {company[col.key as keyof typeof company]}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </ul>
+          </div>
+        ))}
       </div>
     </main>
   );
