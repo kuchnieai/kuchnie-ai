@@ -34,6 +34,7 @@ export default function Home() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
@@ -58,15 +59,22 @@ export default function Home() {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
+    touchStartY.current = e.touches[0]?.clientY ?? null;
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
     const startX = touchStartX.current;
-    if (startX === null) return;
-    const diff = (e.changedTouches[0]?.clientX ?? startX) - startX;
-    if (Math.abs(diff) > 50) {
-      diff > 0 ? showPrev() : showNext();
+    const startY = touchStartY.current;
+    if (startX === null || startY === null) return;
+    const endTouch = e.changedTouches[0];
+    const diffX = (endTouch?.clientX ?? startX) - startX;
+    const diffY = (endTouch?.clientY ?? startY) - startY;
+    if (diffY > 50 && Math.abs(diffY) > Math.abs(diffX)) {
+      setFullscreenIndex(null);
+    } else if (Math.abs(diffX) > 50) {
+      diffX > 0 ? showPrev() : showNext();
     }
     touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   const selectAspect = (ratio: string) => {
