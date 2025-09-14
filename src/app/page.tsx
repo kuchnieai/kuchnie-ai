@@ -363,7 +363,7 @@ export default function Home() {
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
-    console.log('[UI] Generuj klik]');
+    console.log('[UI] GO klik]');
     if (!user) { alert('Zaloguj się!'); return; }
     if (!prompt.trim() && options.length === 0) {
       alert('Wpisz opis kuchni lub wybierz opcję');
@@ -629,7 +629,7 @@ export default function Home() {
               disabled={loading}
               className={`rounded-xl px-4 py-2 bg-[#f2f2f2] self-stretch flex items-center justify-center ${loading ? 'border-2 border-blue-500 pulse-border' : ''}`}
             >
-              {loading ? 'Generuję...' : 'Generuj'}
+              {loading ? 'Generuję...' : 'GO'}
             </button>
           )}
         </div>
@@ -713,7 +713,7 @@ export default function Home() {
             disabled={loading}
             className={`rounded-full px-4 py-2 mt-4 ${loading ? 'border-2 border-blue-500 pulse-border' : 'border'}`}
           >
-            {loading ? 'Generuję...' : 'Generuj'}
+            {loading ? 'Generuję...' : 'GO'}
           </button>
         )}
       </div>
