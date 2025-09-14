@@ -594,11 +594,11 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className="w-full rounded-xl px-4 py-3 pr-20 bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto"
+              className="w-full rounded-xl px-4 pt-3 pb-12 pr-20 bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="absolute right-12 top-1/2 -translate-y-1/2 p-2"
+              className="absolute right-12 bottom-2 p-2"
               aria-label="Ustawienia"
             >
               <svg
@@ -627,7 +627,7 @@ export default function Home() {
               disabled={
                 loading || (prompt.trim().length === 0 && options.length === 0)
               }
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 disabled:opacity-50"
+              className="absolute right-2 bottom-2 p-2 disabled:opacity-50"
               aria-label="Wyślij"
             >
               <svg
