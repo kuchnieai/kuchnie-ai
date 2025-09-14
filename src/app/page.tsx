@@ -21,6 +21,26 @@ function uuidish() {
 
 export default function Home() {
   const [prompt, setPrompt] = useState('');
+  const [options, setOptions] = useState<string[]>([]);
+  const featureOptions = [
+    'Lodówka z prawej',
+    'Lodówka z lewej',
+    'Zlew pod oknem',
+    'Piekarnik w słupku',
+    'Nowoczesna',
+    'Klasyczna',
+    'Bezuchwytów',
+  ];
+
+  const toggleOption = (opt: string) => {
+    setOptions(prev => {
+      const next = prev.includes(opt)
+        ? prev.filter(o => o !== opt)
+        : [...prev, opt];
+      setPrompt(next.join(', '));
+      return next;
+    });
+  };
   const [projects, setProjects] = useState<Project[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = sessionStorage.getItem('projectsCache');
@@ -148,7 +168,6 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('aspectRatio', ratio);
     }
-    setMenuOpen(false);
   };
 
   // --- SESJA ---
@@ -459,14 +478,14 @@ export default function Home() {
           <div className="relative flex-1">
             <input
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Opisz swoją kuchnię…"
+              readOnly
+              placeholder="Wybierz opcje w menu"
               className="w-full rounded-full px-4 py-2 pr-10 bg-[#f2f2f2] border-none"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="absolute right-1 top-1/2 -translate-y-1/2 p-2"
-              aria-label="Opcje orientacji"
+              aria-label="Opcje"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -489,36 +508,67 @@ export default function Home() {
                 <line x1="17" y1="16" x2="23" y2="16" />
               </svg>
             </button>
-            {menuOpen && (
-              <div className="absolute bottom-full mb-2 right-0 w-32 bg-white border rounded shadow z-50">
-                <button
-                  onClick={() => selectAspect('3:4')}
-                  className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '3:4' ? 'font-bold' : ''}`}
-                >
-                  Pion 4:3
-                </button>
-                <button
-                  onClick={() => selectAspect('1:1')}
-                  className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '1:1' ? 'font-bold' : ''}`}
-                >
-                  Kwadrat
-                </button>
-                <button
-                  onClick={() => selectAspect('4:3')}
-                  className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '4:3' ? 'font-bold' : ''}`}
-                >
-                  Poziom 4:3
-                </button>
-              </div>
-            )}
           </div>
-          {prompt.trim() !== '' && (
-            <button onClick={handleGenerate} disabled={loading} className="border rounded-full px-4 py-2">
-              {loading ? 'Generuję...' : 'Generuj'}
-            </button>
-          )}
         </div>
       </div>
+
+      {menuOpen && (
+        <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto flex flex-col">
+          <button
+            className="absolute top-4 right-4 p-2"
+            aria-label="Zamknij"
+            onClick={() => setMenuOpen(false)}
+          >
+            ×
+          </button>
+          <div className="mb-4">
+            <p className="font-medium mb-2">Orientacja</p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => selectAspect('3:4')}
+                className={`text-left px-3 py-2 rounded border ${aspectRatio === '3:4' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+              >
+                Pion 4:3
+              </button>
+              <button
+                onClick={() => selectAspect('1:1')}
+                className={`text-left px-3 py-2 rounded border ${aspectRatio === '1:1' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+              >
+                Kwadrat
+              </button>
+              <button
+                onClick={() => selectAspect('4:3')}
+                className={`text-left px-3 py-2 rounded border ${aspectRatio === '4:3' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+              >
+                Poziom 4:3
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            <p className="font-medium mb-2">Opcje</p>
+            <div className="flex flex-col gap-2">
+              {featureOptions.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => toggleOption(f)}
+                  className={`text-left px-3 py-2 rounded border ${options.includes(f) ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={() => { setMenuOpen(false); handleGenerate(); }}
+            disabled={loading}
+            className="border rounded-full px-4 py-2 mt-4"
+          >
+            {loading ? 'Generuję...' : 'Generuj'}
+          </button>
+        </div>
+      )}
 
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
