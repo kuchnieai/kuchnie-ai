@@ -769,7 +769,7 @@ export default function Home() {
           50% { border-color: rgba(59, 130, 246, 0); }
         }
         .pulse-border {
-          animation: pulse-border 1s ease-in-out infinite;
+          animation: pulse-border 3s ease-in-out infinite;
         }
       `}</style>
     </main>
