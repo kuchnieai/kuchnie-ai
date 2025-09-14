@@ -545,6 +545,7 @@ export default function Home() {
           </div>
           <button
             className="absolute left-4 top-1/2 -translate-y-1/2 text-white text-3xl p-2"
+            style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
             onClick={(e) => { e.stopPropagation(); showPrev(); }}
             aria-label="Poprzednie zdjęcie"
           >
@@ -552,6 +553,7 @@ export default function Home() {
           </button>
           <button
             className="absolute right-4 top-1/2 -translate-y-1/2 text-white text-3xl p-2"
+            style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
             onClick={(e) => { e.stopPropagation(); showNext(); }}
             aria-label="Następne zdjęcie"
           >
