@@ -72,6 +72,7 @@ export default function Home() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
     if (touchStartX.current === null || touchStartY.current === null) return;
     const currentX = e.touches[0]?.clientX ?? touchStartX.current;
     const currentY = e.touches[0]?.clientY ?? touchStartY.current;
@@ -493,7 +494,7 @@ export default function Home() {
           onClick={() => setFullscreenIndex(null)}
         >
           <div
-            className="absolute inset-0 flex"
+            className="absolute inset-0 flex touch-none"
             style={{ transform: `translate3d(${dragOffset.x - fullscreenIndex * screenW}px, ${dragOffset.y}px, 0)`, transition: dragTransition }}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
