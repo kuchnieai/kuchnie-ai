@@ -564,7 +564,7 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className="w-full rounded-xl px-4 py-2 pr-10 bg-[#f2f2f2] border-none resize-none overflow-hidden"
+              className="w-full rounded-xl px-4 py-2 pr-10 bg-[#f2f2f2] border-none resize-none overflow-hidden min-h-10"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
