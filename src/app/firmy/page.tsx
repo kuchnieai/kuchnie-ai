@@ -179,25 +179,43 @@ export default function FirmyPage() {
   return (
     <main className="p-6 pb-24">
       <h1 className="text-2xl font-bold mb-4">Firmy</h1>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {companies.map((company) => (
-          <div
-            key={company.name}
-            className="border border-blue-200 rounded bg-white shadow-sm p-4"
-          >
-            <h2 className="text-lg font-semibold text-blue-700 mb-2">
-              {company.name}
-            </h2>
-            <ul className="text-sm text-gray-700 space-y-1">
+      <div className="overflow-x-auto">
+        <table className="min-w-max text-sm border border-blue-200 rounded-lg shadow-sm overflow-hidden">
+          <thead className="bg-blue-50">
+            <tr>
+              <th className="sticky left-0 bg-blue-50 px-4 py-2 text-left">
+                Firma
+              </th>
               {columns.map((col) => (
-                <li key={col.key} className="flex justify-between">
-                  <span className="font-medium">{col.label}:</span>
-                  <span>{company[col.key as keyof typeof company]}</span>
-                </li>
+                <th
+                  key={col.key}
+                  className="px-4 py-2 text-left whitespace-nowrap"
+                >
+                  {col.label}
+                </th>
               ))}
-            </ul>
-          </div>
-        ))}
+            </tr>
+          </thead>
+          <tbody>
+            {companies.map((company, idx) => {
+              const rowBg = idx % 2 === 0 ? "bg-white" : "bg-gray-50";
+              return (
+                <tr key={company.name} className={`${rowBg} hover:bg-blue-50`}>
+                  <td
+                    className={`sticky left-0 ${rowBg} px-4 py-2 font-semibold text-blue-700`}
+                  >
+                    {company.name}
+                  </td>
+                  {columns.map((col) => (
+                    <td key={col.key} className="px-4 py-2 whitespace-nowrap">
+                      {company[col.key as keyof typeof company]}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </main>
   );
