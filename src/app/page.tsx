@@ -39,6 +39,8 @@ export default function Home() {
   const touchStartTime = useRef<number>(0);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragTransition, setDragTransition] = useState('');
+  const dragAxis = useRef<'x' | 'y' | null>(null);
+  const screenW = typeof window !== 'undefined' ? window.innerWidth : 0;
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
@@ -70,13 +72,23 @@ export default function Home() {
     touchStartY.current = e.touches[0]?.clientY ?? null;
     touchStartTime.current = Date.now();
     setDragTransition('');
+    dragAxis.current = null;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartX.current === null || touchStartY.current === null) return;
     const currentX = e.touches[0]?.clientX ?? touchStartX.current;
     const currentY = e.touches[0]?.clientY ?? touchStartY.current;
-    setDragOffset({ x: currentX - touchStartX.current, y: currentY - touchStartY.current });
+    const diffX = currentX - touchStartX.current;
+    const diffY = currentY - touchStartY.current;
+    if (!dragAxis.current) {
+      dragAxis.current = Math.abs(diffX) > Math.abs(diffY) ? 'x' : 'y';
+    }
+    if (dragAxis.current === 'x') {
+      setDragOffset({ x: diffX, y: 0 });
+    } else {
+      setDragOffset({ x: 0, y: diffY > 0 ? diffY : 0 });
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -87,19 +99,21 @@ export default function Home() {
     const diffX = (endTouch?.clientX ?? startX) - startX;
     const diffY = (endTouch?.clientY ?? startY) - startY;
     const time = Date.now() - touchStartTime.current;
-    const velocity = Math.max(Math.abs(diffX), Math.abs(diffY)) / Math.max(time, 1);
+    const primaryDiff = dragAxis.current === 'x' ? diffX : diffY;
+    const velocity = Math.abs(primaryDiff) / Math.max(time, 1);
     const duration = Math.max(0.1, Math.min(0.5, 0.4 / (velocity + 0.4)));
     setDragTransition(`transform ${duration}s ease-out`);
-    if (diffY > 100 && Math.abs(diffY) > Math.abs(diffX)) {
+    if (dragAxis.current === 'y' && diffY > 100) {
       setDragOffset({ x: 0, y: window.innerHeight });
       setTimeout(() => {
         setFullscreenIndex(null);
         setDragOffset({ x: 0, y: 0 });
         setDragTransition('');
       }, duration * 1000);
-    } else if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY)) {
+    } else if (dragAxis.current === 'x' && Math.abs(diffX) > 100) {
       const dir = diffX > 0 ? 1 : -1;
-      setDragOffset({ x: dir * window.innerWidth, y: 0 });
+      const w = typeof window !== 'undefined' ? window.innerWidth : 0;
+      setDragOffset({ x: dir * w, y: 0 });
       setTimeout(() => {
         dir > 0 ? showPrev() : showNext();
         setDragOffset({ x: 0, y: 0 });
@@ -111,6 +125,7 @@ export default function Home() {
     }
     touchStartX.current = null;
     touchStartY.current = null;
+    dragAxis.current = null;
   };
 
   const selectAspect = (ratio: string) => {
@@ -499,26 +514,40 @@ export default function Home() {
 
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
-          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+          className="fixed inset-0 z-50 bg-black overflow-hidden"
           onClick={() => setFullscreenIndex(null)}
         >
+          <div
+            className="absolute inset-0 flex"
+            style={{ transform: `translate3d(${dragOffset.x - fullscreenIndex * screenW}px, ${dragOffset.y}px, 0)`, transition: dragTransition }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
+            onTouchMove={(e) => { e.stopPropagation(); handleTouchMove(e); }}
+            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
+          >
+            {projects.map((p) => (
+              <img
+                key={p.id}
+                src={p.imageUrl}
+                alt="Pełny ekran"
+                className="w-screen h-screen object-contain flex-shrink-0"
+              />
+            ))}
+          </div>
           <button
-            className="absolute left-4 text-white text-3xl p-2"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white text-3xl p-2"
             onClick={(e) => { e.stopPropagation(); showPrev(); }}
             aria-label="Poprzednie zdjęcie"
           >
             ‹
           </button>
-          <img
-            src={projects[fullscreenIndex].imageUrl}
-            alt="Pełny ekran"
-            className="max-w-full max-h-full"
-            style={{ transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)`, transition: dragTransition }}
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
-            onTouchMove={(e) => { e.stopPropagation(); handleTouchMove(e); }}
-            onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
-          />
+          <button
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-white text-3xl p-2"
+            onClick={(e) => { e.stopPropagation(); showNext(); }}
+            aria-label="Następne zdjęcie"
+          >
+            ›
+          </button>
           <div
             className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
             onClick={(e) => {
@@ -547,13 +576,6 @@ export default function Home() {
               Usuń
             </button>
           </div>
-          <button
-            className="absolute right-4 text-white text-3xl p-2"
-            onClick={(e) => { e.stopPropagation(); showNext(); }}
-            aria-label="Następne zdjęcie"
-          >
-            ›
-          </button>
         </div>
       )}
     </main>
