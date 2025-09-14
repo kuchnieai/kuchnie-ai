@@ -559,6 +559,7 @@ export default function Home() {
           </button>
           <div
             className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
+            style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
             onClick={(e) => {
               e.stopPropagation();
               navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
@@ -569,7 +570,7 @@ export default function Home() {
             <p>{projects[fullscreenIndex].prompt}</p>
             <p className="mt-2">Copy prompt</p>
           </div>
-          <div className="absolute bottom-4 right-4 flex gap-2">
+          <div className="absolute bottom-4 right-4 flex gap-2" style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}>
             <button
               onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
               className="text-white rounded px-3 py-1 text-sm bg-black/60"
