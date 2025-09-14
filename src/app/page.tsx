@@ -364,7 +364,7 @@ export default function Home() {
   const signOut = async () => { await supabase.auth.signOut(); setUser(null); };
 
   return (
-    <main className="min-h-screen p-6">
+    <main className="min-h-screen p-6 pb-24">
       <header className="mb-6 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <img src="/logo.svg" alt="kuchnie.ai logo" className="w-8 h-8 md:w-10 md:h-10" />
@@ -393,49 +393,6 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="mb-4 flex gap-2 items-start">
-        <input
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Opisz swoją kuchnię…"
-          className="flex-1 border rounded px-3 py-2"
-        />
-        <div className="relative">
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            className="border rounded px-3 py-2"
-            aria-label="Opcje orientacji"
-          >
-            ☰
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-50">
-              <button
-                onClick={() => selectAspect('3:4')}
-                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '3:4' ? 'font-bold' : ''}`}
-              >
-                Pion 4:3
-              </button>
-              <button
-                onClick={() => selectAspect('1:1')}
-                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '1:1' ? 'font-bold' : ''}`}
-              >
-                Kwadrat
-              </button>
-              <button
-                onClick={() => selectAspect('4:3')}
-                className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '4:3' ? 'font-bold' : ''}`}
-              >
-                Poziom 4:3
-              </button>
-            </div>
-          )}
-        </div>
-        <button onClick={handleGenerate} disabled={loading} className="border rounded px-3 py-2">
-          {loading ? 'Generuję...' : 'Generuj'}
-        </button>
-      </section>
-
       {projects.length === 0 ? (
         <p className="text-gray-500">Na razie pusto – wygeneruj coś!</p>
       ) : (
@@ -461,6 +418,54 @@ export default function Home() {
           ))}
         </section>
       )}
+
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="border rounded-full p-3 h-10 w-10 flex items-center justify-center"
+              aria-label="Opcje orientacji"
+            >
+              +
+            </button>
+            {menuOpen && (
+              <div className="absolute bottom-full mb-2 left-0 w-32 bg-white border rounded shadow z-50">
+                <button
+                  onClick={() => selectAspect('3:4')}
+                  className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '3:4' ? 'font-bold' : ''}`}
+                >
+                  Pion 4:3
+                </button>
+                <button
+                  onClick={() => selectAspect('1:1')}
+                  className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '1:1' ? 'font-bold' : ''}`}
+                >
+                  Kwadrat
+                </button>
+                <button
+                  onClick={() => selectAspect('4:3')}
+                  className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '4:3' ? 'font-bold' : ''}`}
+                >
+                  Poziom 4:3
+                </button>
+              </div>
+            )}
+          </div>
+          <input
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Opisz swoją kuchnię…"
+            className="flex-1 border rounded-full px-4 py-2"
+          />
+          {prompt.trim() !== '' && (
+            <button onClick={handleGenerate} disabled={loading} className="border rounded-full px-4 py-2">
+              {loading ? 'Generuję...' : 'Generuj'}
+            </button>
+          )}
+        </div>
+      </div>
+
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
           className="fixed inset-0 z-50 bg-black flex items-center justify-center"
