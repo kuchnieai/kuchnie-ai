@@ -11,8 +11,9 @@ function extractTextFromCandidates(resp: any): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, aspectRatio } = await req.json();
-    if (!prompt || typeof prompt !== 'string') {
+    const { prompt = '', aspectRatio, options } = await req.json();
+    const optsArray = Array.isArray(options) ? options : [];
+    if (!prompt && optsArray.length === 0) {
       return NextResponse.json({ error: 'Brak promptu' }, { status: 400 });
     }
 
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest) {
     const geminiUrl = process.env.GEMINI_API_URL; // np. v1beta/models/gemini-2.5-flash:generateContent
     const geminiKey = process.env.GEMINI_API_KEY!;
     let finalPrompt = prompt;
+    if (optsArray.length > 0) {
+      finalPrompt = [prompt, optsArray.join(', ')].filter(Boolean).join(', ');
+    }
 
     if (geminiUrl && geminiKey) {
       const refine = await fetch(geminiUrl, {
@@ -32,7 +36,7 @@ export async function POST(req: NextRequest) {
           contents: [{
             parts: [{
               text:
-                `Przerób opis kuchni na maksymalnie konkretny tekst promptu pod generowanie obrazu: ${prompt}.
+                `Przerób opis kuchni na maksymalnie konkretny tekst promptu pod generowanie obrazu: ${finalPrompt}.
                  Uwzględnij styl (np. nowoczesna/industrial/boho), materiały frontów i blatów, kolory,
                  układ (L/U/wyspa), oświetlenie, porę dnia, kąt ujęcia.`
             }]
