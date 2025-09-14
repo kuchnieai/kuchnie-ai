@@ -21,7 +21,19 @@ function uuidish() {
 
 export default function Home() {
   const [prompt, setPrompt] = useState('');
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem('projectsCache');
+      if (cached) {
+        try {
+          return JSON.parse(cached) as Project[];
+        } catch {
+          /* ignore broken cache */
+        }
+      }
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('4:3');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,6 +67,12 @@ export default function Home() {
   useEffect(() => {
     setCopied(false);
   }, [fullscreenIndex]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('projectsCache', JSON.stringify(projects));
+    }
+  }, [projects]);
 
   const showPrev = () => {
     setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
@@ -139,6 +157,12 @@ export default function Home() {
       setUser(u);
       if (u) {
         await ensureProfile(u.id);
+      } else {
+        setProjects([]);
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('projectsCache');
+          sessionStorage.removeItem('projectsUser');
+        }
       }
     };
 
@@ -153,12 +177,21 @@ export default function Home() {
 
   // --- PO ZALOGOWANIU: WCZYTAJ MOJE PROJEKTY ---
   useEffect(() => {
-    const load = async () => {
-      if (!user) {
-        setProjects([]);
-        return;
-      }
+    if (!user) return;
 
+    const cachedUser =
+      typeof window !== 'undefined' ? sessionStorage.getItem('projectsUser') : null;
+    if (cachedUser !== user.id) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('projectsUser', user.id);
+        sessionStorage.removeItem('projectsCache');
+      }
+      setProjects([]);
+    }
+
+    if (projects.length > 0) return;
+
+    const load = async () => {
       const { data, error } = await supabase
         .from('projects')
         .select('id, prompt, image_url, created_at, user_email')
@@ -200,7 +233,7 @@ export default function Home() {
     };
 
     load();
-  }, [user]);
+  }, [user, projects.length]);
 
   // --- PEŁNY EKRAN: NAWIGACJA KL. ---
   useEffect(() => {
