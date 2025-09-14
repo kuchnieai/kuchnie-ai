@@ -45,6 +45,7 @@ export default function Home() {
       return next;
     });
   };
+
   const [projects, setProjects] = useState<Project[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = sessionStorage.getItem('projectsCache');
@@ -58,12 +59,26 @@ export default function Home() {
     }
     return [];
   });
+
   const [loading, setLoading] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('4:3');
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // --- textarea autogrow ---
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const autoResize = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  useEffect(() => { autoResize(); }, [prompt]);
+  useEffect(() => { autoResize(); }, []); // na wszelki wypadek po montażu
+
+  // --- gestures / fullscreen ---
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const touchStartTime = useRef<number>(0);
@@ -339,7 +354,7 @@ export default function Home() {
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
-    console.log('[UI] Generuj klik');
+    console.log('[UI] Generuj klik]');
     if (!user) { alert('Zaloguj się!'); return; }
     if (!prompt.trim()) { alert('Wpisz opis kuchni'); return; }
 
@@ -541,16 +556,19 @@ export default function Home() {
       <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <input
+            <textarea
+              ref={textareaRef}
+              rows={1}
               value={prompt}
               onChange={(e) => {
                 const value = e.target.value;
                 setPrompt(value);
+                autoResize();
                 const parts = value.split(',').map(p => p.trim());
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
-              placeholder="Opisz kuchnię..."
-              className="w-full rounded-full px-4 py-3 pr-10 bg-[#f2f2f2] border-none text-lg"
+              placeholder="Opisz kuchnię"
+              className="w-full rounded-xl px-4 py-2 pr-10 bg-[#f2f2f2] border-none resize-none overflow-hidden"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
