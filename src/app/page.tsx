@@ -36,6 +36,9 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const touchStartTime = useRef<number>(0);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragTransition, setDragTransition] = useState('');
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
@@ -65,7 +68,17 @@ export default function Home() {
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
     touchStartY.current = e.touches[0]?.clientY ?? null;
+    touchStartTime.current = Date.now();
+    setDragTransition('');
   };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const currentX = e.touches[0]?.clientX ?? touchStartX.current;
+    const currentY = e.touches[0]?.clientY ?? touchStartY.current;
+    setDragOffset({ x: currentX - touchStartX.current, y: currentY - touchStartY.current });
+  };
+
   const handleTouchEnd = (e: React.TouchEvent) => {
     const startX = touchStartX.current;
     const startY = touchStartY.current;
@@ -73,10 +86,28 @@ export default function Home() {
     const endTouch = e.changedTouches[0];
     const diffX = (endTouch?.clientX ?? startX) - startX;
     const diffY = (endTouch?.clientY ?? startY) - startY;
-    if (diffY > 50 && Math.abs(diffY) > Math.abs(diffX)) {
-      setFullscreenIndex(null);
-    } else if (Math.abs(diffX) > 50) {
-      diffX > 0 ? showPrev() : showNext();
+    const time = Date.now() - touchStartTime.current;
+    const velocity = Math.max(Math.abs(diffX), Math.abs(diffY)) / Math.max(time, 1);
+    const duration = Math.max(0.1, Math.min(0.5, 0.4 / (velocity + 0.4)));
+    setDragTransition(`transform ${duration}s ease-out`);
+    if (diffY > 100 && Math.abs(diffY) > Math.abs(diffX)) {
+      setDragOffset({ x: 0, y: window.innerHeight });
+      setTimeout(() => {
+        setFullscreenIndex(null);
+        setDragOffset({ x: 0, y: 0 });
+        setDragTransition('');
+      }, duration * 1000);
+    } else if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY)) {
+      const dir = diffX > 0 ? 1 : -1;
+      setDragOffset({ x: dir * window.innerWidth, y: 0 });
+      setTimeout(() => {
+        dir > 0 ? showPrev() : showNext();
+        setDragOffset({ x: 0, y: 0 });
+        setDragTransition('');
+      }, duration * 1000);
+    } else {
+      setDragOffset({ x: 0, y: 0 });
+      setTimeout(() => setDragTransition(''), duration * 1000);
     }
     touchStartX.current = null;
     touchStartY.current = null;
@@ -482,8 +513,10 @@ export default function Home() {
             src={projects[fullscreenIndex].imageUrl}
             alt="Pełny ekran"
             className="max-w-full max-h-full"
+            style={{ transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)`, transition: dragTransition }}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
+            onTouchMove={(e) => { e.stopPropagation(); handleTouchMove(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           />
           <div
