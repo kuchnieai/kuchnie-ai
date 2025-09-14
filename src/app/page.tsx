@@ -64,6 +64,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const touchStartTime = useRef<number>(0);
@@ -118,6 +119,13 @@ export default function Home() {
       sessionStorage.setItem('projectsCache', JSON.stringify(projects));
     }
   }, [projects]);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [prompt]);
 
   const showPrev = () => {
     setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
@@ -541,16 +549,21 @@ export default function Home() {
       <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <input
+            <textarea
+              ref={textareaRef}
+              rows={1}
               value={prompt}
               onChange={(e) => {
                 const value = e.target.value;
                 setPrompt(value);
+                const el = e.currentTarget;
+                el.style.height = 'auto';
+                el.style.height = `${el.scrollHeight}px`;
                 const parts = value.split(',').map(p => p.trim());
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className="w-full rounded-full px-4 py-2 pr-10 bg-[#f2f2f2] border-none"
+              className="w-full rounded-full px-4 py-2 pr-10 bg-[#f2f2f2] border-none resize-none overflow-hidden"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
