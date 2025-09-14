@@ -183,7 +183,7 @@ export default function FirmyPage() {
         <table className="min-w-max text-sm border border-blue-200 rounded-lg shadow-sm overflow-hidden">
           <thead className="bg-blue-50">
             <tr>
-              <th className="sticky left-0 bg-blue-50 px-4 py-2 text-left">
+              <th className="sticky left-0 z-10 bg-blue-50 px-4 py-2 text-left">
                 Firma
               </th>
               {columns.map((col) => (
@@ -202,7 +202,7 @@ export default function FirmyPage() {
               return (
                 <tr key={company.name} className={`${rowBg} hover:bg-blue-50`}>
                   <td
-                    className={`sticky left-0 ${rowBg} px-4 py-2 font-semibold text-blue-700`}
+                    className={`sticky left-0 z-10 ${rowBg} px-4 py-2 font-semibold text-blue-700`}
                   >
                     {company.name}
                   </td>
