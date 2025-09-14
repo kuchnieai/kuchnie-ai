@@ -70,9 +70,16 @@ export default function Home() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragTransition, setDragTransition] = useState('');
   const dragAxis = useRef<'x' | 'y' | null>(null);
+  const pinchStartDist = useRef<number | null>(null);
+  const baseScale = useRef(1);
+  const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const basePan = useRef({ x: 0, y: 0 });
+  const lastPanTouch = useRef<{ x: number; y: number } | null>(null);
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 0;
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 0;
   const bgOpacity = 1 - Math.min(1, (dragOffset.y / (screenH || 1)) * 2);
+  const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
@@ -93,6 +100,13 @@ export default function Home() {
   }, [fullscreenIndex]);
 
   useEffect(() => {
+    setScale(1);
+    setPan({ x: 0, y: 0 });
+    basePan.current = { x: 0, y: 0 };
+    baseScale.current = 1;
+  }, [fullscreenIndex]);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('projectsCache', JSON.stringify(projects));
     }
@@ -106,31 +120,71 @@ export default function Home() {
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0]?.clientX ?? null;
-    touchStartY.current = e.touches[0]?.clientY ?? null;
-    touchStartTime.current = Date.now();
-    setDragTransition('');
-    dragAxis.current = null;
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDist.current = Math.hypot(dx, dy);
+      baseScale.current = scale;
+    } else if (scale > 1) {
+      lastPanTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else {
+      touchStartX.current = e.touches[0]?.clientX ?? null;
+      touchStartY.current = e.touches[0]?.clientY ?? null;
+      touchStartTime.current = Date.now();
+      setDragTransition('');
+      dragAxis.current = null;
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     e.preventDefault();
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const currentX = e.touches[0]?.clientX ?? touchStartX.current;
-    const currentY = e.touches[0]?.clientY ?? touchStartY.current;
-    const diffX = currentX - touchStartX.current;
-    const diffY = currentY - touchStartY.current;
-    if (!dragAxis.current) {
-      dragAxis.current = Math.abs(diffX) > Math.abs(diffY) ? 'x' : 'y';
-    }
-    if (dragAxis.current === 'x') {
-      setDragOffset({ x: diffX, y: 0 });
-    } else {
-      setDragOffset({ x: 0, y: diffY > 0 ? diffY : 0 });
+    if (e.touches.length === 2 && pinchStartDist.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const newScale = clamp((dist / pinchStartDist.current) * baseScale.current, 1, 4);
+      setScale(newScale);
+    } else if (scale > 1 && e.touches.length === 1 && lastPanTouch.current) {
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const dx = currentX - lastPanTouch.current.x;
+      const dy = currentY - lastPanTouch.current.y;
+      const maxX = (screenW * (scale - 1)) / 2;
+      const maxY = (screenH * (scale - 1)) / 2;
+      setPan({
+        x: clamp(basePan.current.x + dx, -maxX, maxX),
+        y: clamp(basePan.current.y + dy, -maxY, maxY),
+      });
+    } else if (scale === 1) {
+      if (touchStartX.current === null || touchStartY.current === null) return;
+      const currentX = e.touches[0]?.clientX ?? touchStartX.current;
+      const currentY = e.touches[0]?.clientY ?? touchStartY.current;
+      const diffX = currentX - touchStartX.current;
+      const diffY = currentY - touchStartY.current;
+      if (!dragAxis.current) {
+        dragAxis.current = Math.abs(diffX) > Math.abs(diffY) ? 'x' : 'y';
+      }
+      if (dragAxis.current === 'x') {
+        setDragOffset({ x: diffX, y: 0 });
+      } else {
+        setDragOffset({ x: 0, y: diffY > 0 ? diffY : 0 });
+      }
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (pinchStartDist.current && e.touches.length < 2) {
+      pinchStartDist.current = null;
+      baseScale.current = scale;
+      basePan.current = pan;
+      lastPanTouch.current = null;
+      return;
+    }
+    if (scale > 1) {
+      basePan.current = pan;
+      lastPanTouch.current = null;
+      return;
+    }
     const startX = touchStartX.current;
     const startY = touchStartY.current;
     if (startX === null || startY === null) return;
@@ -600,12 +654,17 @@ export default function Home() {
             onTouchMove={(e) => { e.stopPropagation(); handleTouchMove(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           >
-            {projects.map((p) => (
+            {projects.map((p, i) => (
               <img
                 key={p.id}
                 src={p.imageUrl}
                 alt="Pełny ekran"
                 className="w-screen h-screen object-contain flex-shrink-0"
+                style={
+                  i === fullscreenIndex
+                    ? { transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})` }
+                    : undefined
+                }
               />
             ))}
           </div>
