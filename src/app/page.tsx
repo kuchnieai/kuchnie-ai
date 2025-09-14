@@ -37,7 +37,11 @@ export default function Home() {
       const next = prev.includes(opt)
         ? prev.filter(o => o !== opt)
         : [...prev, opt];
-      setPrompt(next.join(', '));
+      setPrompt(prevPrompt => {
+        const parts = prevPrompt.split(',').map(p => p.trim());
+        const manual = parts.filter(p => !featureOptions.includes(p));
+        return [...manual, ...next].filter(Boolean).join(', ');
+      });
       return next;
     });
   };
@@ -478,8 +482,13 @@ export default function Home() {
           <div className="relative flex-1">
             <input
               value={prompt}
-              readOnly
-              placeholder="Wybierz opcje w menu"
+              onChange={(e) => {
+                const value = e.target.value;
+                setPrompt(value);
+                const parts = value.split(',').map(p => p.trim());
+                setOptions(featureOptions.filter(opt => parts.includes(opt)));
+              }}
+              placeholder="Opisz kuchnię"
               className="w-full rounded-full px-4 py-2 pr-10 bg-[#f2f2f2] border-none"
             />
             <button
@@ -509,6 +518,13 @@ export default function Home() {
               </svg>
             </button>
           </div>
+          <button
+            onClick={handleGenerate}
+            disabled={loading}
+            className="border rounded-full px-4 py-2"
+          >
+            {loading ? 'Generuję...' : 'Generuj'}
+          </button>
         </div>
       </div>
 
