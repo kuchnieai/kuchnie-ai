@@ -107,6 +107,13 @@ export default function Home() {
   }, [fullscreenIndex]);
 
   useEffect(() => {
+    if (scale === 1) {
+      setPan({ x: 0, y: 0 });
+      basePan.current = { x: 0, y: 0 };
+    }
+  }, [scale]);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('projectsCache', JSON.stringify(projects));
     }
