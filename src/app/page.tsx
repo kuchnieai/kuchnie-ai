@@ -355,11 +355,14 @@ export default function Home() {
 
     setLoading(true);
     try {
+      // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
+      const userPrompt = prompt;
+
       // 1) Wywołaj API generowania
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio, options }),
+        body: JSON.stringify({ prompt: userPrompt, aspectRatio, options }),
       });
 
       const data = await res.json().catch(() => ({} as any));
@@ -370,7 +373,6 @@ export default function Home() {
       }
 
       const remoteUrl: string | undefined = data?.imageUrl;
-      const finalPrompt: string = data?.prompt ?? prompt;
       if (!remoteUrl) { alert('API nie zwróciło imageUrl'); return; }
 
       // 2) data:URL (base64) albo https (proxy)
@@ -423,7 +425,7 @@ export default function Home() {
         .insert({
           user_id: user.id,
           user_email: user.email,
-          prompt: finalPrompt,
+          prompt: userPrompt,
           image_url: filePath,
         })
         .select('id')
@@ -445,7 +447,7 @@ export default function Home() {
         id: ins?.id ?? uuidish(),
         imageUrl: viewUrl,
         storagePath: filePath,
-        prompt: finalPrompt,
+        prompt: userPrompt,
         user: user.email,
       }, ...p]);
 
