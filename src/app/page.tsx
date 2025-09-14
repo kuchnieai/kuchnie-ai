@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { ensureProfile, editProfile, type Profile } from '@/lib/profile';
+import { ensureProfile } from '@/lib/profile';
 
 type Project = {
   id: string;            // id rekordu w DB
@@ -19,11 +19,6 @@ function uuidish() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function truncatePrompt(text: string, wordLimit = 5): string {
-  const words = text.trim().split(/\s+/);
-  return words.slice(0, wordLimit).join(' ') + (words.length > wordLimit ? '…' : '');
-}
-
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -31,7 +26,6 @@ export default function Home() {
   const [aspectRatio, setAspectRatio] = useState('4:3');
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -141,10 +135,7 @@ export default function Home() {
     const handleUser = async (u: any) => {
       setUser(u);
       if (u) {
-        const p = await ensureProfile(u.id);
-        setProfile(p);
-      } else {
-        setProfile(null);
+        await ensureProfile(u.id);
       }
     };
 
@@ -394,49 +385,11 @@ export default function Home() {
     }
   };
 
-  // --- LOGOWANIE ---
-  const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` },
-    });
-  };
-  const signInWithEmail = async () => {
-    const email = window.prompt('Podaj maila (Supabase magic link):') || '';
-    if (!email) return;
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    alert(error ? 'Błąd logowania' : 'Sprawdź maila i kliknij link.');
-  };
-  const signOut = async () => { await supabase.auth.signOut(); setUser(null); };
-
   return (
     <main className="min-h-screen p-6 pb-24">
-      <header className="mb-6 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="kuchnie.ai logo" className="w-8 h-8 md:w-10 md:h-10" />
-          <h1 className="text-2xl font-bold">kuchnie.ai</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {user ? (
-            <>
-              <button
-                onClick={async () => {
-                  const p = await editProfile(user.id, profile);
-                  setProfile(p);
-                }}
-                className="mr-2 underline"
-              >
-                {profile?.nick}
-              </button>
-              <button onClick={signOut} className="border rounded px-3 py-1">Wyloguj</button>
-            </>
-          ) : (
-            <>
-              <button onClick={signInWithGoogle} className="border rounded px-3 py-1">Zaloguj przez Google</button>
-              <button onClick={signInWithEmail} className="border rounded px-3 py-1 opacity-70">mailem (fallback)</button>
-            </>
-          )}
-        </div>
+      <header className="mb-6 flex items-center gap-2">
+        <img src="/logo.svg" alt="kuchnie.ai logo" className="w-8 h-8 md:w-10 md:h-10" />
+        <h1 className="text-2xl font-bold">kuchnie.ai</h1>
       </header>
 
       {projects.length === 0 ? (
@@ -465,18 +418,43 @@ export default function Home() {
         </section>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white">
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white">
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative flex-1">
+            <input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Opisz swoją kuchnię…"
+              className="w-full rounded-full px-4 py-2 pr-10 bg-[#f2f2f2] border-none"
+            />
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="rounded-full p-3 h-10 w-10 flex items-center justify-center bg-[#f2f2f2] border-none"
+              className="absolute right-1 top-1/2 -translate-y-1/2 p-2"
               aria-label="Opcje orientacji"
             >
-              +
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <line x1="4" y1="21" x2="4" y2="14" />
+                <line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" />
+                <line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="1" y1="14" x2="7" y2="14" />
+                <line x1="9" y1="8" x2="15" y2="8" />
+                <line x1="17" y1="16" x2="23" y2="16" />
+              </svg>
             </button>
             {menuOpen && (
-              <div className="absolute bottom-full mb-2 left-0 w-32 bg-white border rounded shadow z-50">
+              <div className="absolute bottom-full mb-2 right-0 w-32 bg-white border rounded shadow z-50">
                 <button
                   onClick={() => selectAspect('3:4')}
                   className={`block w-full text-left px-3 py-2 hover:bg-gray-100 ${aspectRatio === '3:4' ? 'font-bold' : ''}`}
@@ -498,12 +476,6 @@ export default function Home() {
               </div>
             )}
           </div>
-          <input
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Opisz swoją kuchnię…"
-            className="flex-1 rounded-full px-4 py-2 bg-[#f2f2f2] border-none"
-          />
           {prompt.trim() !== '' && (
             <button onClick={handleGenerate} disabled={loading} className="border rounded-full px-4 py-2">
               {loading ? 'Generuję...' : 'Generuj'}
