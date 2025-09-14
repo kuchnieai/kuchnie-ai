@@ -26,8 +26,8 @@ export default function BottomNav() {
           </div>
         </div>
       )}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t z-50">
-        <ul className="flex justify-around py-2 text-xs">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t z-50 h-16">
+        <ul className="flex justify-around items-center h-full text-xs">
           <li>
             <button
               onClick={() => setMenuOpen(true)}
