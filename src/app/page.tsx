@@ -424,7 +424,7 @@ export default function Home() {
           <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="border rounded-full p-3 h-10 w-10 flex items-center justify-center"
+              className="rounded-full p-3 h-10 w-10 flex items-center justify-center bg-[#f2f2f2] border-none"
               aria-label="Opcje orientacji"
             >
               +
@@ -456,7 +456,7 @@ export default function Home() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Opisz swoją kuchnię…"
-            className="flex-1 border rounded-full px-4 py-2"
+            className="flex-1 rounded-full px-4 py-2 bg-[#f2f2f2] border-none"
           />
           {prompt.trim() !== '' && (
             <button onClick={handleGenerate} disabled={loading} className="border rounded-full px-4 py-2">
