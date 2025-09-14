@@ -33,6 +33,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -48,6 +49,10 @@ export default function Home() {
         document.body.style.overflow = '';
       };
     }
+  }, [fullscreenIndex]);
+
+  useEffect(() => {
+    setCopied(false);
   }, [fullscreenIndex]);
 
   const showPrev = () => {
@@ -476,12 +481,14 @@ export default function Home() {
             onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           />
-          <div className="absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words">
+          <div className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words border ${copied ? 'border-white' : 'border-transparent'}`}>
             <p>{projects[fullscreenIndex].prompt}</p>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1000);
               }}
               className="mt-2 font-bold"
             >
