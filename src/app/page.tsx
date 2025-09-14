@@ -481,19 +481,17 @@ export default function Home() {
             onTouchStart={(e) => { e.stopPropagation(); handleTouchStart(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           />
-          <div className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words border ${copied ? 'border-white' : 'border-transparent'}`}>
+          <div
+            className={`absolute bottom-4 left-4 right-40 text-white text-sm bg-black/60 p-2 rounded break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1000);
+            }}
+          >
             <p>{projects[fullscreenIndex].prompt}</p>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1000);
-              }}
-              className="mt-2 font-bold"
-            >
-              copy prompt
-            </button>
+            <p className="mt-2">Copy prompt</p>
           </div>
           <div className="absolute bottom-4 right-4 flex gap-2">
             <button
