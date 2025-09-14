@@ -64,8 +64,12 @@ export default function Home() {
   const autoResize = () => {
     const el = textareaRef.current;
     if (!el) return;
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+    const maxHeight = lineHeight * 4;
     el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    const newHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${newHeight}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
   };
   useEffect(() => { autoResize(); }, [prompt]);
   useEffect(() => { autoResize(); }, []); // na wszelki wypadek po montażu
@@ -566,7 +570,7 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className="w-full rounded-xl px-4 py-3 pr-10 bg-[#f2f2f2] border-none resize-none overflow-hidden min-h-12 text-lg"
+              className="w-full rounded-xl px-4 py-3 pr-10 bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
