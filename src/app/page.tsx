@@ -48,7 +48,7 @@ export default function Home() {
   const dragAxis = useRef<'x' | 'y' | null>(null);
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 0;
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 0;
-  const bgOpacity = 1 - Math.min(1, dragOffset.y / (screenH || 1));
+  const bgOpacity = 1 - Math.min(1, (dragOffset.y / (screenH || 1)) * 2);
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
