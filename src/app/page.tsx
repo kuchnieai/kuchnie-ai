@@ -582,63 +582,86 @@ export default function Home() {
         </div>
       </div>
 
-      {menuOpen && (
-        <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto flex flex-col">
-          <button
-            className="absolute top-4 right-4 p-2"
-            aria-label="Zamknij"
-            onClick={() => setMenuOpen(false)}
-          >
-            ×
-          </button>
-          <div className="mb-4">
-            <p className="font-medium mb-2">Orientacja</p>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => selectAspect('3:4')}
-                className={`text-left px-3 py-2 rounded border ${aspectRatio === '3:4' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-              >
-                Pion 4:3
-              </button>
-              <button
-                onClick={() => selectAspect('1:1')}
-                className={`text-left px-3 py-2 rounded border ${aspectRatio === '1:1' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-              >
-                Kwadrat
-              </button>
-              <button
-                onClick={() => selectAspect('4:3')}
-                className={`text-left px-3 py-2 rounded border ${aspectRatio === '4:3' ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-              >
-                Poziom 4:3
-              </button>
-            </div>
-          </div>
+      {/* Overlay */}
+      <div
+        className={`fixed inset-0 bg-black/30 z-40 transition-opacity duration-300 ${
+          menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setMenuOpen(false)}
+      />
 
-          <div className="flex-1">
-            <p className="font-medium mb-2">Opcje</p>
-            <div className="flex flex-col gap-2">
-              {featureOptions.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => toggleOption(f)}
-                  className={`text-left px-3 py-2 rounded border ${options.includes(f) ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Sliding menu */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
+          menuOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        <button
+          className="absolute top-4 right-4 p-2"
+          aria-label="Zamknij"
+          onClick={() => setMenuOpen(false)}
+        >
+          ×
+        </button>
 
-          <button
-            onClick={() => { setMenuOpen(false); handleGenerate(); }}
-            disabled={loading}
-            className="border rounded-full px-4 py-2 mt-4"
-          >
-            {loading ? 'Generuję...' : 'Generuj'}
-          </button>
+        <div className="mb-4">
+          <p className="font-medium mb-2">Orientacja</p>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => selectAspect('3:4')}
+              className={`px-3 py-1 rounded-full text-sm ${
+                aspectRatio === '3:4' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+              }`}
+            >
+              Pion 4:3
+            </button>
+            <button
+              onClick={() => selectAspect('1:1')}
+              className={`px-3 py-1 rounded-full text-sm ${
+                aspectRatio === '1:1' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+              }`}
+            >
+              Kwadrat
+            </button>
+            <button
+              onClick={() => selectAspect('4:3')}
+              className={`px-3 py-1 rounded-full text-sm ${
+                aspectRatio === '4:3' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+              }`}
+            >
+              Poziom 4:3
+            </button>
+          </div>
         </div>
-      )}
+
+        <div className="flex-1">
+          <p className="font-medium mb-2">Opcje</p>
+          <div className="flex flex-wrap gap-2">
+            {featureOptions.map((f) => (
+              <button
+                key={f}
+                onClick={() => toggleOption(f)}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  options.includes(f) ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            setMenuOpen(false);
+            handleGenerate();
+          }}
+          disabled={loading}
+          className="border rounded-full px-4 py-2 mt-4"
+        >
+          {loading ? 'Generuję...' : 'Generuj'}
+        </button>
+      </div>
 
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
