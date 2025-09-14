@@ -59,6 +59,19 @@ export default function Home() {
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedPrompt = sessionStorage.getItem('promptDraft');
+      if (savedPrompt) {
+        setPrompt(savedPrompt);
+        const parts = savedPrompt.split(',').map(p => p.trim());
+        setOptions(featureOptions.filter(opt => parts.includes(opt)));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // --- textarea autogrow ---
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const autoResize = () => {
@@ -446,16 +459,24 @@ export default function Home() {
         ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
         : '';
 
-      // 8) UI
-      setProjects(p => [{
+      // 8) UI + zapis w sessionStorage (na wypadek przejścia na inną stronę)
+      const newProj = {
         id: ins?.id ?? uuidish(),
         imageUrl: viewUrl,
         storagePath: filePath,
         prompt: userPrompt,
         user: user.email,
-      }, ...p]);
+      };
+      setProjects(p => [newProj, ...p]);
+      if (typeof window !== 'undefined') {
+        try {
+          const prev = JSON.parse(sessionStorage.getItem('projectsCache') || '[]') as Project[];
+          sessionStorage.setItem('projectsCache', JSON.stringify([newProj, ...prev]));
+        } catch { /* ignore */ }
+      }
 
       setPrompt('');
+      if (typeof window !== 'undefined') sessionStorage.removeItem('promptDraft');
     } catch (e) {
       console.error(e);
       alert(`Wyjątek: ${String(e)}`);
@@ -565,6 +586,9 @@ export default function Home() {
               onChange={(e) => {
                 const value = e.target.value;
                 setPrompt(value);
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('promptDraft', value);
+                }
                 autoResize();
                 const parts = value.split(',').map(p => p.trim());
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
