@@ -363,7 +363,7 @@ export default function Home() {
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
-    console.log('[UI] Generuj klik]');
+    console.log('[UI] Wyślij klik]');
     if (!user) { alert('Zaloguj się!'); return; }
     if (!prompt.trim() && options.length === 0) {
       alert('Wpisz opis kuchni lub wybierz opcję');
@@ -551,7 +551,7 @@ export default function Home() {
       </header>
 
       {projects.length === 0 ? (
-        <p className="text-gray-500">Na razie pusto – wygeneruj coś!</p>
+        <p className="text-gray-500">Na razie pusto – opisz kuchnię i wyślij!</p>
       ) : (
         <section className="columns-2 md:columns-3 gap-1">
           {projects.map((p, i) => (
@@ -594,12 +594,12 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className="w-full rounded-xl px-4 py-3 pr-10 bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto"
+              className="w-full rounded-xl px-4 py-3 pr-20 bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto"
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="absolute right-1 top-1/2 -translate-y-1/2 p-2"
-              aria-label="Opcje"
+              className="absolute right-9 top-1/2 -translate-y-1/2 p-2"
+              aria-label="Ustawienia"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -611,27 +611,35 @@ export default function Home() {
                 strokeLinejoin="round"
                 className="w-5 h-5"
               >
-                <line x1="4" y1="21" x2="4" y2="14" />
-                <line x1="4" y1="10" x2="4" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12" y2="3" />
-                <line x1="20" y1="21" x2="20" y2="16" />
-                <line x1="20" y1="12" x2="20" y2="3" />
-                <line x1="1" y1="14" x2="7" y2="14" />
-                <line x1="9" y1="8" x2="15" y2="8" />
-                <line x1="17" y1="16" x2="23" y2="16" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.4 9.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+            <button
+              onClick={handleGenerate}
+              disabled={
+                loading || (prompt.trim().length === 0 && options.length === 0)
+              }
+              className={`absolute right-1 top-1/2 -translate-y-1/2 p-2 disabled:opacity-50 ${
+                loading ? 'border-2 border-blue-500 pulse-border rounded-full' : ''
+              }`}
+              aria-label="Wyślij"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22l-4-9-9-4 20-7z" />
               </svg>
             </button>
           </div>
-          {(prompt.trim().length > 0 || options.length > 0) && (
-            <button
-              onClick={handleGenerate}
-              disabled={loading}
-              className={`rounded-xl px-4 py-2 bg-[#f2f2f2] self-stretch flex items-center justify-center ${loading ? 'border-2 border-blue-500 pulse-border' : ''}`}
-            >
-              {loading ? 'Generuję...' : 'Generuj'}
-            </button>
-          )}
         </div>
       </div>
 
@@ -704,18 +712,6 @@ export default function Home() {
           </div>
         </div>
 
-        {(prompt.trim().length > 0 || options.length > 0) && (
-          <button
-            onClick={() => {
-              setMenuOpen(false);
-              handleGenerate();
-            }}
-            disabled={loading}
-            className={`rounded-full px-4 py-2 mt-4 ${loading ? 'border-2 border-blue-500 pulse-border' : 'border'}`}
-          >
-            {loading ? 'Generuję...' : 'Generuj'}
-          </button>
-        )}
       </div>
 
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
