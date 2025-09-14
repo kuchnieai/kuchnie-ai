@@ -486,7 +486,7 @@ export default function Home() {
 
       {fullscreenIndex !== null && projects[fullscreenIndex] && (
         <div
-          className="fixed inset-0 z-50 bg-black overflow-hidden"
+          className="fixed inset-0 z-[60] bg-black overflow-hidden"
           onClick={() => setFullscreenIndex(null)}
         >
           <div
