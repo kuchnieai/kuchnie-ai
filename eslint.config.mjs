@@ -1,6 +1,7 @@
 // eslint.config.mjs
 // Flat-config (ESLint v9+) for Next.js 15 + TypeScript
 
+import '@rushstack/eslint-patch/modern-module-resolution.js';
 import next from 'eslint-config-next';
 
 export default [

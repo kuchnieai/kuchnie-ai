@@ -230,6 +230,18 @@ export default function Home() {
   useEffect(() => { autoResize(); }, [prompt]);
   useEffect(() => { autoResize(); }, []); // na wszelki wypadek po montażu
 
+  const applyPromptToEditor = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setPrompt(text);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('promptDraft', text);
+    }
+    syncOptionsFromPrompt(text);
+    autoResize();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+  };
+
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -934,25 +946,23 @@ export default function Home() {
             style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
           >
             <div
-              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                const text = projects[fullscreenIndex].prompt;
-                navigator.clipboard.writeText(text);
-                setPrompt(text);
-                if (typeof window !== 'undefined') {
-                  sessionStorage.setItem('promptDraft', text);
-                }
-                syncOptionsFromPrompt(text);
-                autoResize();
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1000);
-              }}
+              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'}`}
             >
               <p>{projects[fullscreenIndex].prompt}</p>
-              <p className="mt-2">Copy prompt</p>
             </div>
             <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const text = projects[fullscreenIndex].prompt;
+                  applyPromptToEditor(text);
+                }}
+                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                title="Użyj promptu"
+              >
+                Użyj prompt
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
                 className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
