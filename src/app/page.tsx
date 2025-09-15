@@ -88,8 +88,8 @@ const APPLIANCE_FEATURE_OPTIONS: FeatureOption[] = [
 const SIZE_FEATURE_OPTIONS: FeatureOption[] = [
   { label: 'XS', promptText: 'Mała kuchnia ciasna w bloku' },
   { label: 'S', promptText: 'Niezaduża kuchnia w mieszkaniu' },
-  { label: 'M', promptText: 'Średnia kuchnia do mieszkania' },
-  { label: 'L', promptText: 'Kuchnia duża do domu' },
+  { label: 'Medium', promptText: 'Średnia kuchnia do mieszkania' },
+  { label: 'Large', promptText: 'Kuchnia duża do domu' },
   { label: 'XL', promptText: 'Bardzo duża kuchnia najczęściej z wyspą do domu' },
 ];
 
