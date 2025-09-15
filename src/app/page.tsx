@@ -626,7 +626,11 @@ export default function Home() {
             <button
               onClick={handleGenerate}
               disabled={loading || !hasPrompt}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 disabled:opacity-50 ${hasPrompt ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 ${
+                hasPrompt
+                  ? 'opacity-100 scale-100 disabled:opacity-50'
+                  : 'opacity-0 scale-90 pointer-events-none'
+              }`}
               aria-label="Wyślij"
             >
               <svg
