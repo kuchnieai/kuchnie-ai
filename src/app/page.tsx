@@ -26,15 +26,57 @@ function uuidish() {
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [options, setOptions] = useState<string[]>([]);
-  const featureOptions = [
-    'Lodówka z prawej',
-    'Lodówka z lewej',
-    'Zlew pod oknem',
-    'Piekarnik w słupku',
-    'Nowoczesna',
-    'Klasyczna',
-    'Bezuchwytów',
+  const optionCategories = [
+    {
+      title: 'Układ kuchni',
+      options: [
+        'Kuchnia w L',
+        'Kuchnia w U',
+        'Kuchnia jedna ściana',
+        'Okno',
+        'Barek',
+        'Wyspa',
+        'Stół',
+        'Lodówka z prawej',
+        'Lodówka z lewej',
+        'Zlew pod oknem',
+        'Piekarnik w słupku',
+      ],
+    },
+    {
+      title: 'Styl kuchni',
+      options: [
+        'Nowoczesna',
+        'Klasyczna',
+        'Skandynawska',
+        'Loft / Industrialna',
+        'Rustykalna',
+        'Minimalistyczna',
+        'Glamour',
+        'Retro',
+        'Boho',
+        'Japandi',
+      ],
+    },
+    {
+      title: 'Rozmiar kuchni',
+      options: [
+        'Bardzo duża',
+        'Duża',
+        'Średnia',
+        'Mała',
+        'Bardzo mała',
+      ],
+    },
+    {
+      title: 'Uchwyty',
+      options: [
+        'Uchwyty',
+        'Bez uchwytów',
+      ],
+    },
   ];
+  const allOptions = optionCategories.flatMap(category => category.options);
 
   const toggleOption = (opt: string) => {
     setOptions(prev =>
@@ -88,7 +130,7 @@ export default function Home() {
       if (savedPrompt) {
         setPrompt(savedPrompt);
         const parts = savedPrompt.split(',').map(p => p.trim());
-        setOptions(featureOptions.filter(opt => parts.includes(opt)));
+        setOptions(allOptions.filter(opt => parts.includes(opt)));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -645,7 +687,7 @@ export default function Home() {
                 }
                 autoResize();
                 const parts = value.split(',').map(p => p.trim());
-                setOptions(featureOptions.filter(opt => parts.includes(opt)));
+                setOptions(allOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder={PROMPT_PLACEHOLDER}
               className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-fade-in`}
@@ -714,7 +756,7 @@ export default function Home() {
 
       {/* Sliding menu */}
       <div
-        className={`fixed bottom-16 left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
+        className={`fixed bottom-16 left-0 right-0 z-50 p-4 pb-20 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 relative ${
           menuOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -727,7 +769,7 @@ export default function Home() {
         </button>
 
         <div className="mb-4">
-          <p className="font-medium mb-2">Orientacja</p>
+          <p className="font-medium mb-2">Proporcje zdjęcia</p>
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => selectAspect('3:4')}
@@ -735,7 +777,7 @@ export default function Home() {
                 aspectRatio === '3:4' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
               }`}
             >
-              Pion 4:3
+              Pion
             </button>
             <button
               onClick={() => selectAspect('1:1')}
@@ -751,27 +793,61 @@ export default function Home() {
                 aspectRatio === '4:3' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
               }`}
             >
-              Poziom 4:3
+              Poziom
             </button>
           </div>
         </div>
 
-        <div className="flex-1">
-          <p className="font-medium mb-2">Opcje</p>
-          <div className="flex flex-wrap gap-2">
-            {featureOptions.map((f) => (
-              <button
-                key={f}
-                onClick={() => toggleOption(f)}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  options.includes(f) ? 'bg-blue-200' : 'bg-[#f2f2f2]'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+        <div className="space-y-4">
+          {optionCategories.map((category) => (
+            <div key={category.title}>
+              <p className="font-medium mb-2">{category.title}</p>
+              <div className="flex flex-wrap gap-2">
+                {category.options.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => toggleOption(option)}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      options.includes(option) ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (loading || !hasPrompt) return;
+            setMenuOpen(false);
+            handleGenerate();
+          }}
+          disabled={loading || !hasPrompt}
+          className={`absolute bottom-4 right-4 p-3 rounded-full shadow-lg transition-all duration-300 ${
+            loading || !hasPrompt
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-500 text-white hover:bg-blue-600'
+          }`}
+          aria-label="Wyślij"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-5 h-5"
+          >
+            <path d="M22 2L11 13" />
+            <path d="M22 2L15 22l-4-9-9-4 20-7z" />
+          </svg>
+        </button>
 
       </div>
 
@@ -834,7 +910,7 @@ export default function Home() {
                   sessionStorage.setItem('promptDraft', text);
                 }
                 const parts = text.split(',').map(p => p.trim());
-                setOptions(featureOptions.filter(opt => parts.includes(opt)));
+                setOptions(allOptions.filter(opt => parts.includes(opt)));
                 autoResize();
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1000);
