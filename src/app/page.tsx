@@ -51,7 +51,7 @@ const LAYOUT_FEATURE_OPTIONS: FeatureOption[] = [
   { label: 'I', promptText: 'Kuchnia na jednej ścianie' },
   { label: 'L', promptText: 'Kuchnia w literę L' },
   { label: 'U', promptText: 'Kuchnia w literę U' },
-  { label: 'I I', promptText: 'Kuchnia na dwóch równoległych ścianach' },
+  { label: 'I I', promptText: 'Kuchnia na dwóch równoległych ścianach nie połączonych ze sobą meblami' },
   { label: 'Wyspa', promptText: 'Kuchnia z wyspą' },
   { label: 'Barek', promptText: 'Kuchnia z barkiem do siedzenia pod hokery' },
 ];
@@ -765,31 +765,60 @@ export default function Home() {
 
         <div className="mb-4">
           <p className="font-medium mb-2">Orientacja</p>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => selectAspect('3:4')}
-              className={`px-3 py-1 rounded-full text-sm ${
-                aspectRatio === '3:4' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
-              }`}
-            >
-              Pion 4:3
-            </button>
-            <button
-              onClick={() => selectAspect('1:1')}
-              className={`px-3 py-1 rounded-full text-sm ${
-                aspectRatio === '1:1' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
-              }`}
-            >
-              Kwadrat
-            </button>
-            <button
-              onClick={() => selectAspect('4:3')}
-              className={`px-3 py-1 rounded-full text-sm ${
-                aspectRatio === '4:3' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
-              }`}
-            >
-              Poziom 4:3
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-1 flex-wrap gap-2">
+              <button
+                onClick={() => selectAspect('3:4')}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  aspectRatio === '3:4' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                }`}
+              >
+                Pion 4:3
+              </button>
+              <button
+                onClick={() => selectAspect('1:1')}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  aspectRatio === '1:1' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                }`}
+              >
+                Kwadrat
+              </button>
+              <button
+                onClick={() => selectAspect('4:3')}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  aspectRatio === '4:3' ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                }`}
+              >
+                Poziom 4:3
+              </button>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (loading || !hasPrompt) return;
+                  setMenuOpen(false);
+                  handleGenerate();
+                }}
+                disabled={loading || !hasPrompt}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-gray-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Wyślij"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-5 h-5"
+                >
+                  <path d="M22 2L11 13" />
+                  <path d="M22 2L15 22l-4-9-9-4 20-7z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -812,34 +841,6 @@ export default function Home() {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              if (loading || !hasPrompt) return;
-              setMenuOpen(false);
-              handleGenerate();
-            }}
-            disabled={loading || !hasPrompt}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-gray-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Wyślij"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-5 h-5"
-            >
-              <path d="M22 2L11 13" />
-              <path d="M22 2L15 22l-4-9-9-4 20-7z" />
-            </svg>
-          </button>
         </div>
 
       </div>
