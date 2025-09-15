@@ -26,15 +26,7 @@ function uuidish() {
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [options, setOptions] = useState<string[]>([]);
-  const featureOptions = [
-    'Lodówka z prawej',
-    'Lodówka z lewej',
-    'Zlew pod oknem',
-    'Piekarnik w słupku',
-    'Nowoczesna',
-    'Klasyczna',
-    'Bezuchwytów',
-  ];
+  const featureOptions = ['Nowoczesna', 'Klasyczna'];
 
   const toggleOption = (opt: string) => {
     setOptions(prev =>
@@ -757,7 +749,7 @@ export default function Home() {
         </div>
 
         <div className="flex-1">
-          <p className="font-medium mb-2">Opcje</p>
+          <p className="font-medium mb-2">Styl kuchni</p>
           <div className="flex flex-wrap gap-2">
             {featureOptions.map((f) => (
               <button
