@@ -648,7 +648,7 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder={PROMPT_PLACEHOLDER}
-              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300`}
+              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-slide-in`}
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
