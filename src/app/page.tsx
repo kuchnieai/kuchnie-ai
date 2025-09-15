@@ -827,7 +827,15 @@ export default function Home() {
               className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border cursor-pointer ${copied ? 'border-white' : 'border-transparent'}`}
               onClick={(e) => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(projects[fullscreenIndex].prompt);
+                const text = projects[fullscreenIndex].prompt;
+                navigator.clipboard.writeText(text);
+                setPrompt(text);
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('promptDraft', text);
+                }
+                const parts = text.split(',').map(p => p.trim());
+                setOptions(featureOptions.filter(opt => parts.includes(opt)));
+                autoResize();
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1000);
               }}
