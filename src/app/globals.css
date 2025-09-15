@@ -25,19 +25,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-@keyframes placeholderSlideIn {
+@keyframes placeholderFadeIn {
   from {
-    text-indent: -100%;
     opacity: 0;
   }
   to {
-    text-indent: 0;
     opacity: 1;
   }
 }
 
-.placeholder-slide-in::placeholder {
-  text-indent: -100%;
+.placeholder-fade-in::placeholder {
   opacity: 0;
-  animation: placeholderSlideIn 0.6s ease forwards;
+  animation: placeholderFadeIn 0.6s ease forwards;
 }
