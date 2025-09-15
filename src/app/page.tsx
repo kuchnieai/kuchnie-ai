@@ -69,7 +69,6 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
-  const [promptFlash, setPromptFlash] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -81,14 +80,6 @@ export default function Home() {
     window.addEventListener(EVENT_GENERATION_FINISHED, handler);
     return () => window.removeEventListener(EVENT_GENERATION_FINISHED, handler);
   }, []);
-
-  useEffect(() => {
-    if (loading) {
-      setPromptFlash(true);
-      const t = setTimeout(() => setPromptFlash(false), 800);
-      return () => clearTimeout(t);
-    }
-  }, [loading]);
 
   // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
   useEffect(() => {
@@ -574,16 +565,15 @@ export default function Home() {
     try {
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      if (isMobile && (navigator as any).canShare) {
+      if (isMobile && navigator.canShare) {
         const res = await fetch(url);
         const blob = await res.blob();
         const file = new File([blob], `kuchnia-${uuidish()}.png`, {
           type: blob.type || 'image/png',
         });
 
-        const navAny = navigator as any;
-        if (navAny.canShare({ files: [file] })) {
-          await navAny.share({
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
             files: [file],
             title: 'kuchnie.ai',
             text: 'Zapisz obraz w galerii',
@@ -637,13 +627,13 @@ export default function Home() {
         </section>
       )}
 
-      <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
-        <div className="flex items-stretch gap-2">
-          <div
-            className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
-            style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
-          >
-            <textarea
+        <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
+          <div className="flex items-stretch gap-2">
+            <div
+              className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
+              style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
+            >
+              <textarea
               ref={textareaRef}
               rows={1}
               value={prompt}
@@ -658,7 +648,7 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder={PROMPT_PLACEHOLDER}
-              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-slide-in ${promptFlash ? 'flash-text' : ''}`}
+              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-fade-in`}
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
@@ -890,12 +880,6 @@ export default function Home() {
                   mask-composite: exclude;
           pointer-events: none;
         }
-        /* Placeholder lekko wsuwa się z prawej i blednie po focusie/tekście */
-        .placeholder-slide-in::placeholder { opacity: 0.6; transform: translateX(6px); transition: opacity .3s ease, transform .3s ease; }
-        .placeholder-slide-in:focus::placeholder, .placeholder-slide-in:not(:placeholder-shown)::placeholder { opacity: 0.4; transform: translateX(0); }
-        /* Niebieski flash przy rozpoczynaniu generowania */
-        @keyframes flash-blue { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } 30% { box-shadow: 0 0 0 4px rgba(59,130,246,.35); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }
-        .flash-text { animation: flash-blue .8s ease-in-out; }
       `}</style>
     </main>
   );
