@@ -722,7 +722,7 @@ export default function Home() {
         }`}
       >
         <button
-          className="absolute top-4 right-4 p-2"
+          className="absolute top-3 right-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-3xl leading-none text-gray-600 shadow-sm"
           aria-label="Zamknij"
           onClick={() => setMenuOpen(false)}
         >
