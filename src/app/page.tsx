@@ -609,10 +609,10 @@ export default function Home() {
         </section>
       )}
 
-      <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
-        <div className="flex items-stretch gap-2">
-          <div className={`relative flex-1 rounded-xl ${loading ? 'led-border' : ''}`}>
-            <textarea
+        <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
+          <div className="flex items-stretch gap-2">
+            <div className={`relative flex-1 rounded-xl ${loading ? 'led-border' : ''}`}>
+              <textarea
               ref={textareaRef}
               rows={1}
               value={prompt}
