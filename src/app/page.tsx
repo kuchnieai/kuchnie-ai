@@ -26,7 +26,18 @@ function uuidish() {
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [options, setOptions] = useState<string[]>([]);
-  const featureOptions = ['Nowoczesna', 'Klasyczna'];
+  const featureOptions = [
+    'Nowoczesna',
+    'Klasyczna',
+    'Skandynwska',
+    'Loft / Industrial',
+    'Rustykalna',
+    'Minimalistyczna',
+    'Glamour',
+    'Retro',
+    'Boho',
+    'Japandi',
+  ];
 
   const toggleOption = (opt: string) => {
     setOptions(prev =>
