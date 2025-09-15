@@ -53,7 +53,11 @@ const LAYOUT_FEATURE_OPTIONS: FeatureOption[] = [
   { label: 'U', promptText: 'Kuchnia w literę U' },
   { label: 'I I', promptText: 'Kuchnia na dwóch równoległych ścianach' },
   { label: 'Wyspa', promptText: 'Kuchnia z wyspą' },
-  { label: 'Barek', promptText: 'Kuchnia z barkiem do siedzenia pod hokery' },
+  {
+    label: 'Barek',
+    promptText:
+      'Kuchnia z podwyższonym wąski blatem jako barkiem pod hokery dostawiona do blatu roboczego',
+  },
 ];
 
 const FEATURE_CATEGORIES: FeatureCategory[] = [
