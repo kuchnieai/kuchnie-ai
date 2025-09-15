@@ -805,7 +805,7 @@ export default function Home() {
         </button>
 
         <div className="mb-4">
-          <p className="font-medium mb-2">Orientacja</p>
+          <p className="font-medium mb-2">Proporcje zdjęcia</p>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => selectAspect('3:4')}
