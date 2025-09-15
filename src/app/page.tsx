@@ -189,6 +189,9 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
+  const [justFinished, setJustFinished] = useState(false);
+  const finishTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousLoadingRef = useRef(loading);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -199,6 +202,34 @@ export default function Home() {
     const handler = () => setLoading(false);
     window.addEventListener(EVENT_GENERATION_FINISHED, handler);
     return () => window.removeEventListener(EVENT_GENERATION_FINISHED, handler);
+  }, []);
+
+  useEffect(() => {
+    if (previousLoadingRef.current && !loading) {
+      setJustFinished(true);
+      if (finishTimeoutRef.current) {
+        clearTimeout(finishTimeoutRef.current);
+      }
+      finishTimeoutRef.current = setTimeout(() => {
+        setJustFinished(false);
+        finishTimeoutRef.current = null;
+      }, 900);
+    } else if (!previousLoadingRef.current && loading) {
+      if (finishTimeoutRef.current) {
+        clearTimeout(finishTimeoutRef.current);
+        finishTimeoutRef.current = null;
+      }
+      setJustFinished(false);
+    }
+    previousLoadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    return () => {
+      if (finishTimeoutRef.current) {
+        clearTimeout(finishTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
@@ -721,7 +752,9 @@ export default function Home() {
         <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
           <div className="flex items-stretch gap-2">
             <div
-              className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
+              className={`relative rounded-xl transition-all duration-300 ${
+                loading ? 'led-border' : ''
+              } ${justFinished ? 'led-border-finish' : ''}`}
               style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
             >
               <textarea
@@ -982,22 +1015,100 @@ export default function Home() {
         </div>
       )}
       <style jsx>{`
-        @keyframes led-border {
-          to { background-position: 200% 0; }
+        @keyframes led-border-move {
+          0% {
+            background-position: 0% 0%;
+          }
+          100% {
+            background-position: 200% 0%;
+          }
         }
-        .led-border::before {
+        @keyframes led-border-pulse {
+          0%,
+          100% {
+            opacity: 0.6;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+        @keyframes led-border-glow {
+          0%,
+          100% {
+            opacity: 0.35;
+            transform: scale(0.98);
+          }
+          50% {
+            opacity: 0.85;
+            transform: scale(1.03);
+          }
+        }
+        @keyframes led-border-flash {
+          0%,
+          100% {
+            opacity: 0;
+            transform: scale(0.96);
+          }
+          30%,
+          70% {
+            opacity: 1;
+            transform: scale(1.04);
+          }
+        }
+        .led-border::before,
+        .led-border-finish::before {
           content: '';
           position: absolute;
           inset: 0;
           padding: 2px;
           border-radius: inherit;
-          background: linear-gradient(90deg, transparent, #3b82f6, transparent, #3b82f6, transparent);
-          background-size: 200% 100%;
-          animation: led-border 4s linear infinite;
+          pointer-events: none;
           -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           -webkit-mask-composite: xor;
                   mask-composite: exclude;
+        }
+        .led-border::before {
+          background: linear-gradient(
+            120deg,
+            transparent 0%,
+            rgba(59, 130, 246, 0.2) 10%,
+            rgba(59, 130, 246, 0.9) 50%,
+            rgba(59, 130, 246, 0.2) 90%,
+            transparent 100%
+          );
+          background-size: 200% 100%;
+          animation: led-border-move 2.4s linear infinite, led-border-pulse 1.6s ease-in-out infinite;
+        }
+        .led-border::after {
+          content: '';
+          position: absolute;
+          inset: -8px;
+          border-radius: inherit;
+          background: radial-gradient(circle, rgba(59, 130, 246, 0.45), transparent 70%);
+          filter: blur(12px);
           pointer-events: none;
+          opacity: 0.6;
+          animation: led-border-glow 2s ease-in-out infinite;
+        }
+        .led-border-finish::before {
+          background: linear-gradient(
+            120deg,
+            rgba(59, 130, 246, 0.1) 0%,
+            rgba(59, 130, 246, 0.8) 50%,
+            rgba(59, 130, 246, 0.1) 100%
+          );
+          animation: led-border-flash 0.8s ease-out;
+        }
+        .led-border-finish::after {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: inherit;
+          border: 2px solid rgba(59, 130, 246, 0.35);
+          box-shadow: 0 0 18px rgba(59, 130, 246, 0.55);
+          pointer-events: none;
+          opacity: 0;
+          animation: led-border-flash 0.8s ease-out;
         }
       `}</style>
     </main>
