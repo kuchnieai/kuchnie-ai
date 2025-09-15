@@ -102,9 +102,11 @@ export default function Home() {
     const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
     const maxHeight = lineHeight * 4;
     el.style.height = 'auto';
-    const newHeight = Math.min(el.scrollHeight, maxHeight);
+    const scrollHeight = el.scrollHeight;
+    const desiredHeight = el.value ? scrollHeight : lineHeight;
+    const newHeight = Math.min(desiredHeight, maxHeight);
     el.style.height = `${newHeight}px`;
-    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+    el.style.overflowY = el.value && scrollHeight > maxHeight ? 'auto' : 'hidden';
   };
   useEffect(() => { autoResize(); }, [prompt]);
   useEffect(() => { autoResize(); }, []); // na wszelki wypadek po montażu
