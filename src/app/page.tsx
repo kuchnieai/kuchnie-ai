@@ -12,6 +12,14 @@ type Project = {
   user: string;
 };
 
+type GenerateResponse = {
+  project?: Project;
+  prompt?: string;
+  imageUrl?: string;
+  error?: string;
+  details?: string;
+};
+
 const LOADING_KEY = 'isGenerating';
 const EVENT_GENERATION_FINISHED = 'generation-finished';
 const PROMPT_PLACEHOLDER = 'Opisz kuchnię';
@@ -410,7 +418,6 @@ export default function Home() {
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
-    console.log('[UI] Wyślij klik]');
     if (!user) { alert('Zaloguj się!'); return; }
     if (!prompt.trim() && options.length === 0) {
       alert('Wpisz opis kuchni lub wybierz opcję');
@@ -425,98 +432,50 @@ export default function Home() {
       // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
       const userPrompt = prompt;
 
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) { throw sessionError; }
+
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        alert('Brak aktywnej sesji. Zaloguj się ponownie.');
+        return;
+      }
+
       // 1) Wywołaj API generowania
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userPrompt, aspectRatio, options }),
+        keepalive: true,
+        body: JSON.stringify({ prompt: userPrompt, aspectRatio, options, accessToken }),
       });
 
-      const data = await res.json().catch(() => ({} as any));
+      const data = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (!res.ok) {
         console.error('[API ERROR]', data);
         alert(`Błąd generowania: ${data?.error ?? res.status}\n${data?.details ?? ''}`);
         return;
       }
 
-      const remoteUrl: string | undefined = data?.imageUrl;
-      if (!remoteUrl) { alert('API nie zwróciło imageUrl'); return; }
-
-      // 2) data:URL (base64) albo https (proxy)
-      let blob: Blob;
-      let contentType = 'image/png';
-
-      if (remoteUrl.startsWith('data:')) {
-        const m = remoteUrl.match(/^data:([^;]+);base64,(.*)$/);
-        if (!m) throw new Error('Invalid data URL from /api/generate');
-        contentType = m[1] || 'image/png';
-        const b64 = m[2];
-        const binary = atob(b64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        blob = new Blob([bytes], { type: contentType });
-      } else {
-        let resp = await fetch(
-          `/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`,
-          { cache: 'no-store' }
-        );
-        if (!resp.ok) {
-          console.warn('[proxy failed]', resp.status, '— trying direct fetch');
-          resp = await fetch(remoteUrl, { cache: 'no-store' });
-          if (!resp.ok) throw new Error(`Load failed (${resp.status})`);
-        }
-        contentType = resp.headers.get('content-type') ?? contentType;
-        const buf = await resp.arrayBuffer();
-        blob = new Blob([buf], { type: contentType });
+      const apiProject = data?.project;
+      if (!apiProject) {
+        alert('API nie zwróciło projektu');
+        return;
       }
 
-      // 3) Rozszerzenie
-      const ext =
-        contentType.includes('jpeg') ? 'jpg' :
-        contentType.includes('webp') ? 'webp' :
-        contentType.includes('png')  ? 'png'  : 'bin';
+      if (!apiProject.imageUrl || !apiProject.storagePath) {
+        alert('Brak danych obrazka w odpowiedzi API');
+        return;
+      }
 
-      // 4) Ścieżka: images/<UID>/<losowe>.<ext>
-      const filePath = `${user.id}/${uuidish()}.${ext}`;
-
-      // 5) Upload
-      const { error: upErr } = await supabase
-        .storage
-        .from('images')
-        .upload(filePath, blob, { contentType });
-      if (upErr) throw upErr;
-
-      // 6) INSERT + zwróć id
-      const { data: ins, error: insErr } = await supabase
-        .from('projects')
-        .insert({
-          user_id: user.id,
-          user_email: user.email,
-          prompt: userPrompt,
-          image_url: filePath,
-        })
-        .select('id')
-        .single();
-      if (insErr) throw insErr;
-
-      // 7) Podpisany URL (iOS-friendly)
-      const { data: signed } = await supabase
-        .storage
-        .from('images')
-        .createSignedUrl(filePath, 60 * 60);
-
-      const viewUrl = signed?.signedUrl
-        ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
-        : '';
-
-      // 8) UI + zapis w sessionStorage (na wypadek przejścia na inną stronę)
-      const newProj = {
-        id: ins?.id ?? uuidish(),
-        imageUrl: viewUrl,
-        storagePath: filePath,
-        prompt: userPrompt,
-        user: user.email,
+      const newProj: Project = {
+        id: apiProject.id || uuidish(),
+        imageUrl: apiProject.imageUrl,
+        storagePath: apiProject.storagePath,
+        prompt: apiProject.prompt || userPrompt,
+        user: apiProject.user || user.email,
       };
+
+      // 2) UI + zapis w sessionStorage (na wypadek przejścia na inną stronę)
       setProjects(p => [newProj, ...p]);
       if (typeof window !== 'undefined') {
         try {
