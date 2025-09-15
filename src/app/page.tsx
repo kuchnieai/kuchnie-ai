@@ -12,6 +12,14 @@ type Project = {
   user: string;
 };
 
+type GenerateResponse = {
+  project?: Project;
+  prompt?: string;
+  imageUrl?: string;
+  error?: string;
+  details?: string;
+};
+
 const LOADING_KEY = 'isGenerating';
 const EVENT_GENERATION_FINISHED = 'generation-finished';
 const PROMPT_PLACEHOLDER = 'Opisz kuchnię';
@@ -477,7 +485,6 @@ export default function Home() {
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async () => {
-    console.log('[UI] Wyślij klik]');
     if (!user) { alert('Zaloguj się!'); return; }
     const optionPrompts = options
       .map((label) => optionPromptByLabel(label))
@@ -495,98 +502,55 @@ export default function Home() {
       // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
       const userPrompt = prompt;
 
-      // 1) Wywołaj API generowania
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) { throw sessionError; }
+
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        alert('Brak aktywnej sesji. Zaloguj się ponownie.');
+        return;
+      }
+
+      // 1) Wywołaj API generowania (wersja bez konfliktów)
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userPrompt, aspectRatio, options: optionPrompts }),
+        keepalive: true,
+        body: JSON.stringify({
+          prompt: userPrompt,
+          aspectRatio,
+          options: optionPrompts, // wysyłamy gotowe fragmenty promptu
+          accessToken,            // przekazujemy token dla backendu
+        }),
       });
 
-      const data = await res.json().catch(() => ({} as any));
+      const data = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (!res.ok) {
         console.error('[API ERROR]', data);
         alert(`Błąd generowania: ${data?.error ?? res.status}\n${data?.details ?? ''}`);
         return;
       }
 
-      const remoteUrl: string | undefined = data?.imageUrl;
-      if (!remoteUrl) { alert('API nie zwróciło imageUrl'); return; }
-
-      // 2) data:URL (base64) albo https (proxy)
-      let blob: Blob;
-      let contentType = 'image/png';
-
-      if (remoteUrl.startsWith('data:')) {
-        const m = remoteUrl.match(/^data:([^;]+);base64,(.*)$/);
-        if (!m) throw new Error('Invalid data URL from /api/generate');
-        contentType = m[1] || 'image/png';
-        const b64 = m[2];
-        const binary = atob(b64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        blob = new Blob([bytes], { type: contentType });
-      } else {
-        let resp = await fetch(
-          `/api/fetch-image?url=${encodeURIComponent(remoteUrl)}`,
-          { cache: 'no-store' }
-        );
-        if (!resp.ok) {
-          console.warn('[proxy failed]', resp.status, '— trying direct fetch');
-          resp = await fetch(remoteUrl, { cache: 'no-store' });
-          if (!resp.ok) throw new Error(`Load failed (${resp.status})`);
-        }
-        contentType = resp.headers.get('content-type') ?? contentType;
-        const buf = await resp.arrayBuffer();
-        blob = new Blob([buf], { type: contentType });
+      const apiProject = data?.project;
+      if (!apiProject) {
+        alert('API nie zwróciło projektu');
+        return;
       }
 
-      // 3) Rozszerzenie
-      const ext =
-        contentType.includes('jpeg') ? 'jpg' :
-        contentType.includes('webp') ? 'webp' :
-        contentType.includes('png')  ? 'png'  : 'bin';
+      if (!apiProject.imageUrl || !apiProject.storagePath) {
+        alert('Brak danych obrazka w odpowiedzi API');
+        return;
+      }
 
-      // 4) Ścieżka: images/<UID>/<losowe>.<ext>
-      const filePath = `${user.id}/${uuidish()}.${ext}`;
-
-      // 5) Upload
-      const { error: upErr } = await supabase
-        .storage
-        .from('images')
-        .upload(filePath, blob, { contentType });
-      if (upErr) throw upErr;
-
-      // 6) INSERT + zwróć id
-      const { data: ins, error: insErr } = await supabase
-        .from('projects')
-        .insert({
-          user_id: user.id,
-          user_email: user.email,
-          prompt: userPrompt,
-          image_url: filePath,
-        })
-        .select('id')
-        .single();
-      if (insErr) throw insErr;
-
-      // 7) Podpisany URL (iOS-friendly)
-      const { data: signed } = await supabase
-        .storage
-        .from('images')
-        .createSignedUrl(filePath, 60 * 60);
-
-      const viewUrl = signed?.signedUrl
-        ? `${signed.signedUrl}${signed.signedUrl.includes('?') ? '&' : '?'}download=1`
-        : '';
-
-      // 8) UI + zapis w sessionStorage (na wypadek przejścia na inną stronę)
-      const newProj = {
-        id: ins?.id ?? uuidish(),
-        imageUrl: viewUrl,
-        storagePath: filePath,
-        prompt: userPrompt,
-        user: user.email,
+      const newProj: Project = {
+        id: apiProject.id || uuidish(),
+        imageUrl: apiProject.imageUrl,
+        storagePath: apiProject.storagePath,
+        prompt: apiProject.prompt || userPrompt,
+        user: apiProject.user || user.email,
       };
+
+      // 2) UI + zapis w sessionStorage (na wypadek przejścia na inną stronę)
       setProjects(p => [newProj, ...p]);
       if (typeof window !== 'undefined') {
         try {
@@ -639,15 +603,15 @@ export default function Home() {
     try {
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      if (isMobile && navigator.canShare) {
+      if (isMobile && (navigator as any).canShare) {
         const res = await fetch(url);
         const blob = await res.blob();
         const file = new File([blob], `kuchnia-${uuidish()}.png`, {
           type: blob.type || 'image/png',
         });
 
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
+        if ((navigator as any).canShare({ files: [file] })) {
+          await (navigator as any).share({
             files: [file],
             title: 'kuchnie.ai',
             text: 'Zapisz obraz w galerii',
@@ -690,7 +654,7 @@ export default function Home() {
                 className="w-full h-auto object-cover cursor-pointer"
                 onClick={() => setFullscreenIndex(i)}
                 onError={(e) => {
-                  const el = e.currentTarget;
+                  const el = e.currentTarget as HTMLImageElement;
                   if (!el.src.includes('download=1')) {
                     el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
                   }
