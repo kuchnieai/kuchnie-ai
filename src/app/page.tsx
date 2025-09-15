@@ -911,19 +911,77 @@ export default function Home() {
             onTouchMove={(e) => { e.stopPropagation(); handleTouchMove(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           >
-            {projects.map((p, i) => (
-              <img
-                key={p.id}
-                src={p.imageUrl}
-                alt="Pełny ekran"
-                className="w-screen h-screen object-contain flex-shrink-0"
-                style={
-                  i === fullscreenIndex
-                    ? { transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})` }
-                    : undefined
-                }
-              />
-            ))}
+            {projects.map((p, i) => {
+              const isActive = i === fullscreenIndex;
+
+              return (
+                <div
+                  key={p.id}
+                  className="relative w-screen h-screen flex-shrink-0"
+                  style={
+                    isActive
+                      ? { transform: `translate3d(${pan.x}px, ${pan.y}px, 0)` }
+                      : undefined
+                  }
+                >
+                  <img
+                    src={p.imageUrl}
+                    alt="Pełny ekran"
+                    className="w-full h-full object-contain"
+                    style={isActive ? { transform: `scale(${scale})` } : undefined}
+                  />
+                  {isActive && (
+                    <div
+                      className="absolute bottom-4 left-4 right-4 flex flex-col gap-2"
+                      style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
+                    >
+                      <div
+                        className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${
+                          copied ? 'border-white' : 'border-transparent'
+                        }`}
+                      >
+                        <p>{p.prompt}</p>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const text = p.prompt;
+                            applyPromptToEditor(text);
+                          }}
+                          className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                          title="Użyj promptu"
+                        >
+                          Użyj prompt
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(p.imageUrl);
+                          }}
+                          className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                          title="Zapisz obraz w galerii"
+                        >
+                          Pobierz
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(p);
+                            setFullscreenIndex(null);
+                          }}
+                          className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                          title="Usuń projekt"
+                        >
+                          Usuń
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <button
             className="absolute left-4 top-1/2 -translate-y-1/2 text-white text-3xl p-2"
@@ -941,44 +999,6 @@ export default function Home() {
           >
             ›
           </button>
-          <div
-            className="absolute bottom-4 left-4 right-4 flex flex-col gap-2"
-            style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
-          >
-            <div
-              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'}`}
-            >
-              <p>{projects[fullscreenIndex].prompt}</p>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const text = projects[fullscreenIndex].prompt;
-                  applyPromptToEditor(text);
-                }}
-                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
-                title="Użyj promptu"
-              >
-                Użyj prompt
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
-                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
-                title="Zapisz obraz w galerii"
-              >
-                Pobierz
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(projects[fullscreenIndex]); setFullscreenIndex(null); }}
-                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
-                title="Usuń projekt"
-              >
-                Usuń
-              </button>
-            </div>
-          </div>
         </div>
       )}
       <style jsx>{`
