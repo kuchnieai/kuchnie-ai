@@ -188,6 +188,7 @@ export default function Home() {
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
+  const hasSelectedOptions = options.length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
 
   const mountedRef = useRef(true);
@@ -871,12 +872,14 @@ export default function Home() {
           <button
             type="button"
             onClick={() => {
-              if (loading || !hasPrompt) return;
+              if (loading || !hasSelectedOptions) return;
               setMenuOpen(false);
               handleGenerate();
             }}
-            disabled={loading || !hasPrompt}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-gray-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !hasSelectedOptions}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] ${
+              hasSelectedOptions ? 'text-gray-700' : 'text-gray-400'
+            } shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed`}
             aria-label="Wyślij"
           >
             <svg
