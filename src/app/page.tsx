@@ -14,6 +14,7 @@ type Project = {
 
 const LOADING_KEY = 'isGenerating';
 const EVENT_GENERATION_FINISHED = 'generation-finished';
+const PROMPT_PLACEHOLDER = 'Opisz kuchnię';
 
 function uuidish() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -67,6 +68,7 @@ export default function Home() {
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
+  const [collapsedWidth, setCollapsedWidth] = useState(0);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -106,6 +108,20 @@ export default function Home() {
   };
   useEffect(() => { autoResize(); }, [prompt]);
   useEffect(() => { autoResize(); }, []); // na wszelki wypadek po montażu
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const style = window.getComputedStyle(el);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.font = `${style.fontSize} ${style.fontFamily}`;
+    const textWidth = ctx.measureText(PROMPT_PLACEHOLDER).width;
+    const paddingLeft = parseFloat(style.paddingLeft);
+    const paddingRight = parseFloat(style.paddingRight);
+    setCollapsedWidth(textWidth + paddingLeft + paddingRight);
+  }, []);
 
   // --- gestures / fullscreen ---
   const touchStartX = useRef<number | null>(null);
@@ -611,7 +627,10 @@ export default function Home() {
 
         <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
           <div className="flex items-stretch gap-2">
-            <div className={`relative flex-1 rounded-xl ${loading ? 'led-border' : ''}`}>
+            <div
+              className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
+              style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
+            >
               <textarea
               ref={textareaRef}
               rows={1}
@@ -626,7 +645,7 @@ export default function Home() {
                 const parts = value.split(',').map(p => p.trim());
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
-              placeholder="Opisz kuchnię"
+              placeholder={PROMPT_PLACEHOLDER}
               className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300`}
             />
             <button
