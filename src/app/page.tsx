@@ -981,9 +981,7 @@ export default function Home() {
             <div
               className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'} max-h-20 overflow-y-auto`}
             >
-              <p className="m-0 leading-5 whitespace-pre-wrap">
-                {projects[fullscreenIndex].prompt}
-              </p>
+              <p>{projects[fullscreenIndex].prompt}</p>
             </div>
             <div className="flex justify-end gap-2">
               <button
