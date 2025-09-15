@@ -577,7 +577,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen p-6 pb-40">
+    <main className="vh-100 p-6 pb-40">
       <header className="mb-6 flex items-center gap-2">
         <img src="/logo.svg" alt="kuchnie.ai logo" className="w-8 h-8 md:w-10 md:h-10" />
         <h1 className="text-2xl font-bold">kuchnie.ai</h1>
@@ -609,7 +609,7 @@ export default function Home() {
         </section>
       )}
 
-      <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
+      <div className="sticky bottom-16 left-0 right-0 px-4 py-2 bg-white safe-bottom">
         <div className="flex items-stretch gap-2">
           <div className={`relative flex-1 rounded-xl ${loading ? 'led-border' : ''}`}>
             <textarea
@@ -773,7 +773,7 @@ export default function Home() {
                 key={p.id}
                 src={p.imageUrl}
                 alt="Pełny ekran"
-                className="w-screen h-screen object-contain flex-shrink-0"
+                className="w-screen vh-100 object-contain flex-shrink-0"
                 style={
                   i === fullscreenIndex
                     ? { transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})` }
