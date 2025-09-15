@@ -69,6 +69,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
+  const [promptFlash, setPromptFlash] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -80,6 +81,14 @@ export default function Home() {
     window.addEventListener(EVENT_GENERATION_FINISHED, handler);
     return () => window.removeEventListener(EVENT_GENERATION_FINISHED, handler);
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      setPromptFlash(true);
+      const t = setTimeout(() => setPromptFlash(false), 800);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
 
   // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
   useEffect(() => {
@@ -648,7 +657,7 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder={PROMPT_PLACEHOLDER}
-              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-slide-in`}
+              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-slide-in ${promptFlash ? 'flash-text' : ''}`}
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
