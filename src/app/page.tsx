@@ -12,6 +12,9 @@ type Project = {
   user: string;
 };
 
+const LOADING_KEY = 'isGenerating';
+const EVENT_GENERATION_FINISHED = 'generation-finished';
+
 function uuidish() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -52,13 +55,29 @@ export default function Home() {
     return [];
   });
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(LOADING_KEY) === '1';
+    }
+    return false;
+  });
   const [aspectRatio, setAspectRatio] = useState('4:3');
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
+
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setLoading(false);
+    window.addEventListener(EVENT_GENERATION_FINISHED, handler);
+    return () => window.removeEventListener(EVENT_GENERATION_FINISHED, handler);
+  }, []);
 
   // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
   useEffect(() => {
@@ -372,6 +391,9 @@ export default function Home() {
     }
 
     setLoading(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(LOADING_KEY, '1');
+    }
     try {
       // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
       const userPrompt = prompt;
@@ -482,7 +504,11 @@ export default function Home() {
       console.error(e);
       alert(`Wyjątek: ${String(e)}`);
     } finally {
-      setLoading(false);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(LOADING_KEY);
+        window.dispatchEvent(new Event(EVENT_GENERATION_FINISHED));
+      }
+      if (mountedRef.current) setLoading(false);
     }
   };
 
