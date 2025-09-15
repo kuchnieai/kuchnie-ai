@@ -23,7 +23,6 @@ type GenerateResponse = {
 const LOADING_KEY = 'isGenerating';
 const EVENT_GENERATION_FINISHED = 'generation-finished';
 const PROMPT_PLACEHOLDER = 'Opisz kuchnię';
-const MENU_CLOSE_THRESHOLD = 120;
 
 type FeatureOption = {
   label: string;
@@ -190,9 +189,6 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
-  const menuDragStart = useRef<number | null>(null);
-  const [menuDragOffset, setMenuDragOffset] = useState(0);
-  const [menuDragTransition, setMenuDragTransition] = useState('');
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -259,14 +255,6 @@ export default function Home() {
     const paddingRight = parseFloat(style.paddingRight);
     setCollapsedWidth(textWidth + paddingLeft + paddingRight);
   }, []);
-
-  useEffect(() => {
-    if (!menuOpen) {
-      setMenuDragOffset(0);
-      setMenuDragTransition('');
-      menuDragStart.current = null;
-    }
-  }, [menuOpen]);
 
   // --- gestures / fullscreen ---
   const touchStartX = useRef<number | null>(null);
@@ -697,51 +685,6 @@ export default function Home() {
     }
   };
 
-  const handleMenuPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!menuOpen) return;
-    menuDragStart.current = event.clientY;
-    setMenuDragTransition('');
-    setMenuDragOffset(0);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleMenuPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (menuDragStart.current === null) return;
-    const diff = event.clientY - menuDragStart.current;
-    setMenuDragOffset(diff > 0 ? diff : 0);
-  };
-
-  const handleMenuPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (menuDragStart.current === null) return;
-    const diff = event.clientY - menuDragStart.current;
-    menuDragStart.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    const shouldClose = diff > MENU_CLOSE_THRESHOLD;
-    setMenuDragTransition('transform 0.2s ease-out');
-
-    if (shouldClose) {
-      const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
-      const targetOffset = screenHeight ? Math.max(diff, screenHeight * 0.6) : diff;
-      setMenuDragOffset(targetOffset);
-      setTimeout(() => {
-        setMenuOpen(false);
-        setMenuDragOffset(0);
-        setMenuDragTransition('');
-      }, 200);
-    } else {
-      setMenuDragOffset(0);
-      setTimeout(() => {
-        setMenuDragTransition('');
-      }, 200);
-    }
-  };
-
-  const overlayFadeProgress = Math.min(menuDragOffset / (MENU_CLOSE_THRESHOLD * 2), 1);
-  const menuOverlayOpacity = menuOpen ? 1 - overlayFadeProgress : 0;
-
   return (
     <main className="min-h-screen p-6 pb-40">
       <header className="mb-6 flex items-center gap-2">
@@ -857,27 +800,14 @@ export default function Home() {
           menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setMenuOpen(false)}
-        style={{ opacity: menuOpen ? menuOverlayOpacity : undefined, transition: 'opacity 0.2s ease-out' }}
       />
 
       {/* Sliding menu */}
       <div
-        className={`fixed bottom-16 left-0 right-0 z-50 px-4 pt-10 pb-20 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 relative ${
+        className={`fixed bottom-16 left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
           menuOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ transform: menuOpen ? `translateY(${menuDragOffset}px)` : undefined, transition: menuDragTransition || undefined }}
+        } pb-20`}
       >
-        <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex justify-center pt-2 pb-3">
-          <div
-            className="pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none px-6 py-3"
-            onPointerDown={handleMenuPointerDown}
-            onPointerMove={handleMenuPointerMove}
-            onPointerUp={handleMenuPointerEnd}
-            onPointerCancel={handleMenuPointerEnd}
-          >
-            <span className="block h-1.5 w-12 rounded-full bg-gray-300" />
-          </div>
-        </div>
         <button
           className="absolute top-3 right-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-3xl leading-none text-gray-600 shadow-sm"
           aria-label="Zamknij"
