@@ -16,6 +16,44 @@ const LOADING_KEY = 'isGenerating';
 const EVENT_GENERATION_FINISHED = 'generation-finished';
 const PROMPT_PLACEHOLDER = 'Opisz kuchnię';
 
+type FeatureOption = {
+  label: string;
+  promptText: string;
+};
+
+const FEATURE_OPTIONS: FeatureOption[] = [
+  { label: 'Nowoczesna', promptText: 'Kuchnia nowoczesna' },
+  { label: 'Klasyczna', promptText: 'Kuchnia klasyczna' },
+  { label: 'Skandynawska', promptText: 'Kuchnia w stylu skandynawskim' },
+  { label: 'Loft / Industrial', promptText: 'Kuchnia w stylu loft / industrialnym' },
+  { label: 'Rustykalna', promptText: 'Kuchnia rustykalna' },
+  { label: 'Minimalistyczna', promptText: 'Kuchnia minimalistyczna' },
+  { label: 'Glamour', promptText: 'Kuchnia w stylu glamour' },
+  { label: 'Retro', promptText: 'Kuchnia retro' },
+  { label: 'Boho', promptText: 'Kuchnia boho' },
+  { label: 'Japandi', promptText: 'Kuchnia w stylu japandi' },
+];
+
+const optionPromptByLabel = (label: string) =>
+  FEATURE_OPTIONS.find((opt) => opt.label === label)?.promptText;
+
+const isOptionPromptText = (text: string) =>
+  FEATURE_OPTIONS.some((opt) => opt.promptText === text);
+
+const extractOptionLabelsFromPrompt = (value: string) => {
+  const parts = value.split(',').map((p) => p.trim()).filter(Boolean);
+  return FEATURE_OPTIONS.filter((opt) => parts.includes(opt.promptText)).map((opt) => opt.label);
+};
+
+const mergePromptWithSelectedOptions = (currentPrompt: string, selectedLabels: string[]) => {
+  const parts = currentPrompt.split(',').map((p) => p.trim()).filter(Boolean);
+  const baseParts = parts.filter((part) => !isOptionPromptText(part));
+  const optionParts = selectedLabels
+    .map((label) => optionPromptByLabel(label))
+    .filter((part): part is string => Boolean(part));
+  return [...baseParts, ...optionParts].join(', ');
+};
+
 function uuidish() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -24,25 +62,31 @@ function uuidish() {
 }
 
 export default function Home() {
+  const featureOptions = FEATURE_OPTIONS;
   const [prompt, setPrompt] = useState('');
   const [options, setOptions] = useState<string[]>([]);
-  const featureOptions = [
-    'Nowoczesna',
-    'Klasyczna',
-    'Skandynwska',
-    'Loft / Industrial',
-    'Rustykalna',
-    'Minimalistyczna',
-    'Glamour',
-    'Retro',
-    'Boho',
-    'Japandi',
-  ];
+
+  const applyOptionsToPrompt = (selected: string[]) => {
+    setPrompt((prev) => {
+      const merged = mergePromptWithSelectedOptions(prev, selected);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('promptDraft', merged);
+      }
+      return merged;
+    });
+  };
+
+  const syncOptionsFromPrompt = (value: string) => {
+    const matched = extractOptionLabelsFromPrompt(value);
+    setOptions(matched);
+  };
 
   const toggleOption = (opt: string) => {
-    setOptions(prev =>
-      prev.includes(opt) ? prev.filter(o => o !== opt) : [...prev, opt]
-    );
+    setOptions((prev) => {
+      const next = prev.includes(opt) ? prev.filter((o) => o !== opt) : [...prev, opt];
+      applyOptionsToPrompt(next);
+      return next;
+    });
   };
 
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -90,8 +134,7 @@ export default function Home() {
       const savedPrompt = sessionStorage.getItem('promptDraft');
       if (savedPrompt) {
         setPrompt(savedPrompt);
-        const parts = savedPrompt.split(',').map(p => p.trim());
-        setOptions(featureOptions.filter(opt => parts.includes(opt)));
+        syncOptionsFromPrompt(savedPrompt);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -412,7 +455,10 @@ export default function Home() {
   const handleGenerate = async () => {
     console.log('[UI] Wyślij klik]');
     if (!user) { alert('Zaloguj się!'); return; }
-    if (!prompt.trim() && options.length === 0) {
+    const optionPrompts = options
+      .map((label) => optionPromptByLabel(label))
+      .filter((text): text is string => Boolean(text));
+    if (!prompt.trim() && optionPrompts.length === 0) {
       alert('Wpisz opis kuchni lub wybierz opcję');
       return;
     }
@@ -429,7 +475,7 @@ export default function Home() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userPrompt, aspectRatio, options }),
+        body: JSON.stringify({ prompt: userPrompt, aspectRatio, options: optionPrompts }),
       });
 
       const data = await res.json().catch(() => ({} as any));
@@ -526,6 +572,7 @@ export default function Home() {
       }
 
       setPrompt('');
+      setOptions([]);
       if (typeof window !== 'undefined') sessionStorage.removeItem('promptDraft');
     } catch (e) {
       console.error(e);
@@ -647,8 +694,7 @@ export default function Home() {
                   sessionStorage.setItem('promptDraft', value);
                 }
                 autoResize();
-                const parts = value.split(',').map(p => p.trim());
-                setOptions(featureOptions.filter(opt => parts.includes(opt)));
+                syncOptionsFromPrompt(value);
               }}
               placeholder={PROMPT_PLACEHOLDER}
               className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-fade-in`}
@@ -764,16 +810,44 @@ export default function Home() {
           <div className="flex flex-wrap gap-2">
             {featureOptions.map((f) => (
               <button
-                key={f}
-                onClick={() => toggleOption(f)}
+                key={f.label}
+                onClick={() => toggleOption(f.label)}
                 className={`px-3 py-1 rounded-full text-sm ${
-                  options.includes(f) ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                  options.includes(f.label) ? 'bg-blue-200' : 'bg-[#f2f2f2]'
                 }`}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              if (loading || !hasPrompt) return;
+              setMenuOpen(false);
+              handleGenerate();
+            }}
+            disabled={loading || !hasPrompt}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-gray-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Wyślij"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-5 h-5"
+            >
+              <path d="M22 2L11 13" />
+              <path d="M22 2L15 22l-4-9-9-4 20-7z" />
+            </svg>
+          </button>
         </div>
 
       </div>
@@ -836,8 +910,7 @@ export default function Home() {
                 if (typeof window !== 'undefined') {
                   sessionStorage.setItem('promptDraft', text);
                 }
-                const parts = text.split(',').map(p => p.trim());
-                setOptions(featureOptions.filter(opt => parts.includes(opt)));
+                syncOptionsFromPrompt(text);
                 autoResize();
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1000);
