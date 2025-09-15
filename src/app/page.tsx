@@ -609,7 +609,7 @@ export default function Home() {
         </section>
       )}
 
-      <div className="fixed bottom-16 left-0 right-0 px-4 py-2 bg-white">
+      <div className="fixed bottom-[2px] left-0 right-0 px-4 py-2 bg-white">
         <div className="flex items-stretch gap-2">
           <div className={`relative flex-1 rounded-xl ${loading ? 'led-border' : ''}`}>
             <textarea
@@ -693,7 +693,7 @@ export default function Home() {
 
       {/* Sliding menu */}
       <div
-        className={`fixed bottom-16 left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
+        className={`fixed bottom-[2px] left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
           menuOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
