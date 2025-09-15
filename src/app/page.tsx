@@ -125,6 +125,27 @@ export default function Home() {
     setCollapsedWidth(textWidth + paddingLeft + paddingRight);
   }, []);
 
+  useEffect(() => {
+    const handleOutsideTap = (e: MouseEvent | TouchEvent) => {
+      const textarea = textareaRef.current;
+      if (
+        textarea &&
+        document.activeElement === textarea &&
+        !textarea.contains(e.target as Node)
+      ) {
+        textarea.blur();
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideTap, true);
+    document.addEventListener('touchstart', handleOutsideTap, true);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideTap, true);
+      document.removeEventListener('touchstart', handleOutsideTap, true);
+    };
+  }, []);
+
   // --- gestures / fullscreen ---
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
