@@ -67,6 +67,8 @@ export default function Home() {
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editColor, setEditColor] = useState('');
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -518,6 +520,50 @@ export default function Home() {
     }
   };
 
+  // --- EDYCJA OBRAZU ---
+  const handleEdit = async () => {
+    if (!user) { alert('Zaloguj się!'); return; }
+    if (!editFile) { alert('Wgraj zdjęcie'); return; }
+    if (!editColor.trim()) { alert('Podaj kolor'); return; }
+    setLoading(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(LOADING_KEY, '1');
+    }
+    try {
+      const form = new FormData();
+      form.append('image', editFile);
+      form.append('prompt', editColor);
+      const res = await fetch('/api/edit', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        console.error('[EDIT ERROR]', data);
+        alert(`Błąd edycji: ${data?.error ?? res.status}`);
+        return;
+      }
+      const imageUrl: string | undefined = data?.imageUrl;
+      if (!imageUrl) { alert('API nie zwróciło imageUrl'); return; }
+      const newProj: Project = {
+        id: uuidish(),
+        imageUrl,
+        storagePath: '',
+        prompt: editColor,
+        user: user.email,
+      };
+      setProjects(p => [newProj, ...p]);
+      setEditColor('');
+      setEditFile(null);
+    } catch (e) {
+      console.error(e);
+      alert(`Wyjątek: ${String(e)}`);
+    } finally {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(LOADING_KEY);
+        window.dispatchEvent(new Event(EVENT_GENERATION_FINISHED));
+      }
+      if (mountedRef.current) setLoading(false);
+    }
+  };
+
   // --- USUWANIE PROJEKTU (plik + rekord) ---
   const handleDelete = async (proj: Project) => {
     if (!confirm('Usunąć ten projekt?')) return;
@@ -582,6 +628,28 @@ export default function Home() {
         <img src="/logo.svg" alt="kuchnie.ai logo" className="w-8 h-8 md:w-10 md:h-10" />
         <h1 className="text-2xl font-bold">kuchnie.ai</h1>
       </header>
+
+      <section className="mb-6 flex flex-wrap items-center gap-2">
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+        />
+        <input
+          type="text"
+          value={editColor}
+          onChange={(e) => setEditColor(e.target.value)}
+          placeholder="Kolor kuchni"
+          className="border rounded px-2 py-1"
+        />
+        <button
+          onClick={handleEdit}
+          disabled={!editFile || !editColor || loading}
+          className="bg-orange-500 text-white px-3 py-1 rounded disabled:opacity-50"
+        >
+          Zmień kolor
+        </button>
+      </section>
 
       {projects.length === 0 ? (
         <p className="text-gray-500">Na razie pusto – opisz kuchnię i wyślij!</p>
