@@ -38,3 +38,18 @@ body {
   opacity: 0;
   animation: placeholderFadeIn 0.6s ease forwards;
 }
+
+@keyframes promptBarSlideIn {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.prompt-bar-slide-in {
+  animation: promptBarSlideIn 0.6s ease-out forwards;
+}

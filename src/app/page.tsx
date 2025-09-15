@@ -69,6 +69,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
+  const [placeholderReady, setPlaceholderReady] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -117,12 +118,14 @@ export default function Home() {
     const style = window.getComputedStyle(el);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.font = `${style.fontSize} ${style.fontFamily}`;
-    const textWidth = ctx.measureText(PROMPT_PLACEHOLDER).width;
-    const paddingLeft = parseFloat(style.paddingLeft);
-    const paddingRight = parseFloat(style.paddingRight);
-    setCollapsedWidth(textWidth + paddingLeft + paddingRight);
+    if (ctx) {
+      ctx.font = `${style.fontSize} ${style.fontFamily}`;
+      const textWidth = ctx.measureText(PROMPT_PLACEHOLDER).width;
+      const paddingLeft = parseFloat(style.paddingLeft);
+      const paddingRight = parseFloat(style.paddingRight);
+      setCollapsedWidth(textWidth + paddingLeft + paddingRight);
+    }
+    setPlaceholderReady(true);
   }, []);
 
   // --- gestures / fullscreen ---
@@ -630,8 +633,13 @@ export default function Home() {
         <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
           <div className="flex items-stretch gap-2">
             <div
-              className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
-              style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
+              className={`relative rounded-xl ${loading ? 'led-border' : ''} ${placeholderReady ? 'prompt-bar-slide-in' : ''} transition-all duration-300`}
+              style={{
+                width: hasPrompt ? '100%' : `${collapsedWidth}px`,
+                flexGrow: hasPrompt ? 1 : 0,
+                transition: placeholderReady ? undefined : 'none',
+                opacity: placeholderReady ? 1 : 0,
+              }}
             >
               <textarea
               ref={textareaRef}
