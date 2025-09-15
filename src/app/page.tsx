@@ -946,7 +946,7 @@ export default function Home() {
             style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
           >
             <div
-              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'}`}
+              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'} max-h-20 overflow-y-auto`}
             >
               <p>{projects[fullscreenIndex].prompt}</p>
             </div>
@@ -961,7 +961,7 @@ export default function Home() {
                 className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
                 title="Użyj promptu"
               >
-                Użyj prompt
+                Użyj promptu
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
