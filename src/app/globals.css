@@ -20,7 +20,29 @@
 }
 
 body {
-  background: var(--background);
+  background-color: #fff;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Stable viewport height helper */
+.vh-100 {
+  min-height: 100svh;
+}
+
+@supports not (min-height: 100svh) {
+  .vh-100 {
+    height: calc(var(--vh, 1vh) * 100);
+  }
+}
+
+/* Safe area utilities */
+.sticky-bottom {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
