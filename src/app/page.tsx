@@ -595,11 +595,11 @@ export default function Home() {
                 setOptions(featureOptions.filter(opt => parts.includes(opt)));
               }}
               placeholder="Opisz kuchnię"
-              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto`}
+              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300`}
             />
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className={`absolute ${hasPrompt ? 'right-12' : 'right-2'} top-1/2 -translate-y-1/2 p-2`}
+              className={`absolute ${hasPrompt ? 'right-12' : 'right-2'} top-1/2 -translate-y-1/2 p-2 transition-all duration-300`}
               aria-label="Ustawienia"
             >
               <svg
@@ -623,28 +623,26 @@ export default function Home() {
                 <line x1="17" y1="16" x2="23" y2="16" />
               </svg>
             </button>
-            {hasPrompt && (
-              <button
-                onClick={handleGenerate}
-                disabled={loading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 disabled:opacity-50"
-                aria-label="Wyślij"
+            <button
+              onClick={handleGenerate}
+              disabled={loading || !hasPrompt}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 disabled:opacity-50 ${hasPrompt ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
+              aria-label="Wyślij"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-5 h-5"
-                >
-                  <path d="M22 2L11 13" />
-                  <path d="M22 2L15 22l-4-9-9-4 20-7z" />
-                </svg>
-              </button>
-            )}
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22l-4-9-9-4 20-7z" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
