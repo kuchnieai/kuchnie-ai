@@ -176,6 +176,12 @@ export default function Home() {
       const dist = Math.hypot(dx, dy);
       const newScale = clamp((dist / pinchStartDist.current) * baseScale.current, 1, 4);
       setScale(newScale);
+      const maxX = (screenW * (newScale - 1)) / 2;
+      const maxY = (screenH * (newScale - 1)) / 2;
+      const clampedX = clamp(pan.x, -maxX, maxX);
+      const clampedY = clamp(pan.y, -maxY, maxY);
+      setPan({ x: clampedX, y: clampedY });
+      basePan.current = { x: clampedX, y: clampedY };
     } else if (scale > 1 && e.touches.length === 1 && lastPanTouch.current) {
       const currentX = e.touches[0].clientX;
       const currentY = e.touches[0].clientY;
