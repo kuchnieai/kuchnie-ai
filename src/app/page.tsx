@@ -21,7 +21,12 @@ type FeatureOption = {
   promptText: string;
 };
 
-const FEATURE_OPTIONS: FeatureOption[] = [
+type FeatureCategory = {
+  name: string;
+  options: FeatureOption[];
+};
+
+const STYLE_FEATURE_OPTIONS: FeatureOption[] = [
   { label: 'Nowoczesna', promptText: 'Kuchnia nowoczesna' },
   { label: 'Klasyczna', promptText: 'Kuchnia klasyczna' },
   { label: 'Skandynawska', promptText: 'Kuchnia w stylu skandynawskim' },
@@ -32,6 +37,25 @@ const FEATURE_OPTIONS: FeatureOption[] = [
   { label: 'Retro', promptText: 'Kuchnia retro' },
   { label: 'Boho', promptText: 'Kuchnia boho' },
   { label: 'Japandi', promptText: 'Kuchnia w stylu japandi' },
+];
+
+const LAYOUT_FEATURE_OPTIONS: FeatureOption[] = [
+  { label: 'I', promptText: 'Kuchnia na jednej ścianie' },
+  { label: 'L', promptText: 'Kuchnia w literę L' },
+  { label: 'U', promptText: 'Kuchnia w literę U' },
+  { label: 'I I', promptText: 'Kuchnia na dwóch równoległych ścianach' },
+  { label: 'Wyspa', promptText: 'Kuchnia z wyspą' },
+  { label: 'Barek', promptText: 'Kuchnia z barkiem do siedzenia pod hokery' },
+];
+
+const FEATURE_CATEGORIES: FeatureCategory[] = [
+  { name: 'Styl kuchni', options: STYLE_FEATURE_OPTIONS },
+  { name: 'Układ kuchni', options: LAYOUT_FEATURE_OPTIONS },
+];
+
+const FEATURE_OPTIONS: FeatureOption[] = [
+  ...STYLE_FEATURE_OPTIONS,
+  ...LAYOUT_FEATURE_OPTIONS,
 ];
 
 const optionPromptByLabel = (label: string) =>
@@ -62,7 +86,7 @@ function uuidish() {
 }
 
 export default function Home() {
-  const featureOptions = FEATURE_OPTIONS;
+  const featureCategories = FEATURE_CATEGORIES;
   const [prompt, setPrompt] = useState('');
   const [options, setOptions] = useState<string[]>([]);
 
@@ -805,21 +829,25 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex-1">
-          <p className="font-medium mb-2">Styl kuchni</p>
-          <div className="flex flex-wrap gap-2">
-            {featureOptions.map((f) => (
-              <button
-                key={f.label}
-                onClick={() => toggleOption(f.label)}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  options.includes(f.label) ? 'bg-blue-200' : 'bg-[#f2f2f2]'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex-1 space-y-4">
+          {featureCategories.map((category) => (
+            <div key={category.name}>
+              <p className="font-medium mb-2">{category.name}</p>
+              <div className="flex flex-wrap gap-2">
+                {category.options.map((f) => (
+                  <button
+                    key={f.label}
+                    onClick={() => toggleOption(f.label)}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      options.includes(f.label) ? 'bg-blue-200' : 'bg-[#f2f2f2]'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="mt-6 flex justify-end">
