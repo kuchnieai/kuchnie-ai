@@ -60,14 +60,51 @@ const LAYOUT_FEATURE_OPTIONS: FeatureOption[] = [
   },
 ];
 
+const APPLIANCE_FEATURE_OPTIONS: FeatureOption[] = [
+  {
+    label: 'Lod zab.',
+    promptText:
+      'Kuchnia z jedną lodówką w zabudowie dwoje drzwi na dole front do wysokości blatu drugi front jak pasuje',
+  },
+  { label: 'Lod. woln.', promptText: 'Kuchnia z lodówką pojedynczą szerokości 60cm wysoką' },
+  { label: 'Lod. side', promptText: 'Kuchnia z lodówką side by side dwoje drzwi szeroka' },
+  {
+    label: 'Piek pod pł.',
+    promptText:
+      'Kuchnia z piekarnikiem pod płytą grzewczą 60cm nad okap wolnowiszący lub w zabudowie',
+  },
+  {
+    label: 'Piek w słup.',
+    promptText:
+      'Kuchnia z piekarnikiem w słupku zazwyczaj razem z mikrofalą też w zabudowie',
+  },
+  {
+    label: 'Zlew okno',
+    promptText:
+      'Kuchnia ze zlewozmywakiem pod oknem najczęściej półtorakomory z małym ociekaczem w kuchni tylko jeden zlew',
+  },
+];
+
+const SIZE_FEATURE_OPTIONS: FeatureOption[] = [
+  { label: 'XS', promptText: 'Mała kuchnia ciasna w bloku' },
+  { label: 'S', promptText: 'Niezaduża kuchnia w mieszkaniu' },
+  { label: 'M', promptText: 'Średnia kuchnia do mieszkania' },
+  { label: 'L', promptText: 'Kuchnia duża do domu' },
+  { label: 'XL', promptText: 'Bardzo duża kuchnia najczęściej z wyspą do domu' },
+];
+
 const FEATURE_CATEGORIES: FeatureCategory[] = [
   { name: 'Styl kuchni', options: STYLE_FEATURE_OPTIONS },
   { name: 'Układ kuchni', options: LAYOUT_FEATURE_OPTIONS },
+  { name: 'AGD', options: APPLIANCE_FEATURE_OPTIONS },
+  { name: 'Rozmiar', options: SIZE_FEATURE_OPTIONS },
 ];
 
 const FEATURE_OPTIONS: FeatureOption[] = [
   ...STYLE_FEATURE_OPTIONS,
   ...LAYOUT_FEATURE_OPTIONS,
+  ...APPLIANCE_FEATURE_OPTIONS,
+  ...SIZE_FEATURE_OPTIONS,
 ];
 
 const optionPromptByLabel = (label: string) =>
