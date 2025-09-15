@@ -680,7 +680,7 @@ export default function Home() {
         <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
           <div className="flex items-stretch gap-2">
             <div
-              className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
+              className={`relative rounded-xl border-2 border-transparent overflow-hidden ${loading ? 'led-border' : ''} transition-all duration-300`}
               style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
             >
               <textarea
@@ -940,21 +940,20 @@ export default function Home() {
       )}
       <style jsx>{`
         @keyframes led-border {
-          to { background-position: 200% 0; }
+          to {
+            background-position: 0 0, 200% 0;
+          }
         }
-        .led-border::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          padding: 2px;
+        .led-border {
           border-radius: inherit;
-          background: linear-gradient(90deg, transparent, #3b82f6, transparent, #3b82f6, transparent);
-          background-size: 200% 100%;
+          background-image:
+            linear-gradient(#f2f2f2, #f2f2f2),
+            linear-gradient(90deg, transparent, #3b82f6, transparent, #3b82f6, transparent);
+          background-origin: border-box;
+          background-clip: padding-box, border-box;
+          background-size: 100% 100%, 200% 100%;
+          background-position: 0 0, 0 0;
           animation: led-border 4s linear infinite;
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-                  mask-composite: exclude;
-          pointer-events: none;
         }
       `}</style>
     </main>
