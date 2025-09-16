@@ -1,223 +1,173 @@
-const columns = [
-  { key: "specialization", label: "Specjalizacja" },
-  { key: "rating", label: "Ocena" },
-  { key: "distance", label: "Dystans" },
-  { key: "city", label: "Miasto" },
-  { key: "promotion", label: "Promocja" },
-  { key: "expires", label: "Ważność" },
-  { key: "budget", label: "Budżet" },
-  { key: "leadTime", label: "Realizacja" },
-  { key: "type", label: "Typ" },
-  { key: "modules", label: "Moduły" },
-  { key: "installation", label: "Montaż" },
-  { key: "guarantee", label: "Gwarancja" },
-  { key: "appliances", label: "AGD" },
-  { key: "project", label: "Projekt" },
-  { key: "measurement", label: "Pomiar" },
-  { key: "contact", label: "Akcje" },
-];
+import CompanyMap from '@/components/CompanyMap';
+import type { Company } from '@/types/company';
 
-const baseCompanies = [
+const FALLBACK_COMPANIES: Company[] = [
   {
-    name: "IZI KUCHNIE",
-    city: "Gdańsk",
-    promotion: "Kuchnie bez vat",
-    expires: "Jeszcze 23 dni",
-    distance: "5 km",
-    budget: "💲💲💲💲",
-    leadTime: "8-13 tyg",
-    rating: "8,2/10",
-    specialization: "Studio kuchni",
-    type: "na wymiar",
-    modules: "moduły",
-    installation: "Z montażem",
-    guarantee: "Gwar 20 lat",
-    appliances: "AGD",
-    project: "Projekt 0zł",
-    measurement: "Pomiar 250 zł",
-    contact: "Umów się",
+    id: 'izi-kuchnie',
+    name: 'IZI KUCHNIE',
+    city: 'Gdańsk',
+    lat: 54.352025,
+    lng: 18.646638,
+    url: 'https://www.izikuchnie.pl/',
+    promotion: 'Kuchnie bez VAT',
+    rating: '8,2/10',
+    specialization: 'Studio kuchni',
+    leadTime: '8-13 tygodni',
+    budget: '💲💲💲💲',
   },
   {
-    name: "KUCHNIE LAJT",
-    city: "Gdynia",
-    promotion: "Bon 2000 zł",
-    expires: "Jeszcze 2 dni",
-    distance: "10 km",
-    budget: "💲💲",
-    leadTime: "6-8 tyg",
-    rating: "9,3/10",
-    specialization: "Studio kuchni",
-    type: "na wymiar",
-    modules: "-",
-    installation: "Bez montażu",
-    guarantee: "Gwar 25 lat",
-    appliances: "-",
-    project: "Projekt 300zł",
-    measurement: "Pomiar 0 zł",
-    contact: "Umów się",
+    id: 'kuchnie-lajt',
+    name: 'KUCHNIE LAJT',
+    city: 'Gdynia',
+    lat: 54.51889,
+    lng: 18.53054,
+    url: 'https://kuchnielajt.pl/',
+    promotion: 'Bon 2000 zł',
+    rating: '9,3/10',
+    specialization: 'Studio kuchni',
+    leadTime: '6-8 tygodni',
+    budget: '💲💲',
   },
   {
-    name: "MOONER",
-    city: "Sopot",
-    promotion: "Air fraier gratis",
-    expires: "Jeszcze 7 dni",
-    distance: "27 km",
-    budget: "💲💲💲💲",
-    leadTime: "5-7 tyg",
-    rating: "8,9/10",
-    specialization: "Biuro projektowe",
-    type: "na wymiar",
-    modules: "-",
-    installation: "Z montażem",
-    guarantee: "Gwar 2 lata",
-    appliances: "AGD",
-    project: "Projekt 0zł",
-    measurement: "Pomiar 100 zł",
-    contact: "Umów się",
+    id: 'mooner',
+    name: 'MOONER',
+    city: 'Sopot',
+    lat: 54.441581,
+    lng: 18.5601,
+    url: 'https://mooner.pl/',
+    promotion: 'Air fryer gratis',
+    rating: '8,9/10',
+    specialization: 'Biuro projektowe',
+    leadTime: '5-7 tygodni',
+    budget: '💲💲💲💲',
   },
   {
-    name: "DZIK DESIGN",
-    city: "Gdańsk",
-    promotion: "30% taniej",
-    expires: "Jeszcze 20 dni",
-    distance: "32 km",
-    budget: "💲💲💲💲💲",
-    leadTime: "6-8 tyg",
-    rating: "9,1/10",
-    specialization: "Projektant",
-    type: "na wymiar",
-    modules: "moduły",
-    installation: "Z montażem",
-    guarantee: "Gwar 2 lata",
-    appliances: "-",
-    project: "Projekt 0zł",
-    measurement: "Pomiar 250 zł",
-    contact: "Umów się",
+    id: 'warsaw-studio',
+    name: 'Warsaw Kitchen Studio',
+    city: 'Warszawa',
+    lat: 52.229675,
+    lng: 21.012228,
+    url: 'https://warsawkitchenstudio.pl/',
+    promotion: 'Projekt gratis',
+    rating: '9,1/10',
+    specialization: 'Studio kuchni premium',
+    leadTime: '6-9 tygodni',
+    budget: '💲💲💲💲💲',
   },
   {
-    name: "BAIRI",
-    city: "Gdynia",
-    promotion: "Zlew gratis",
-    expires: "Jeszcze 12 dni",
-    distance: "48 km",
-    budget: "💲💲💲",
-    leadTime: "5-9 tyg",
-    rating: "8,1/10",
-    specialization: "Sklep meblowy",
-    type: "na wymiar",
-    modules: "-",
-    installation: "Z montażem",
-    guarantee: "Gwar 5 lat",
-    appliances: "AGD",
-    project: "Projekt 0zł",
-    measurement: "Pomiar 0 zł",
-    contact: "Umów się",
-  },
-  {
-    name: "FAMA DESIGN",
-    city: "Sopot",
-    promotion: "Taniej o 23%",
-    expires: "Jeszcze 14 dni",
-    distance: "60 km",
-    budget: "💲💲💲💲💲",
-    leadTime: "6-9 tyg",
-    rating: "7,9/10",
-    specialization: "Stolarz",
-    type: "na wymiar",
-    modules: "-",
-    installation: "Z montażem",
-    guarantee: "Gwar 2 lata",
-    appliances: "AGD",
-    project: "Projekt 0zł",
-    measurement: "Pomiar 100 zł",
-    contact: "Umów się",
-  },
-  {
-    name: "Gdańskie",
-    city: "Gdańsk",
-    promotion: "Bon 2500 zł",
-    expires: "Jeszcze 21 dni",
-    distance: "70 km",
-    budget: "💲",
-    leadTime: "7-10 tyg",
-    rating: "8,5/10",
-    specialization: "Studio kuchni",
-    type: "na wymiar",
-    modules: "moduły",
-    installation: "Z montażem",
-    guarantee: "Gwar 2 lata",
-    appliances: "AGD",
-    project: "Projekt 0zł",
-    measurement: "Pomiar 0 zł",
-    contact: "Umów się",
+    id: 'krakow-masters',
+    name: 'Kraków Masters',
+    city: 'Kraków',
+    lat: 50.06465,
+    lng: 19.94498,
+    url: 'https://krakowmasters.pl/',
+    promotion: 'Rabat 15%',
+    rating: '8,7/10',
+    specialization: 'Pracownia stolarska',
+    leadTime: '7-10 tygodni',
+    budget: '💲💲💲',
   },
 ];
 
-const additionalCompanies = Array.from({ length: 30 }, (_, i) => ({
-  name: `FIRMA ${i + 1}`,
-  city: "Warszawa",
-  promotion: "Promocja",
-  expires: `Jeszcze ${i + 5} dni`,
-  distance: `${10 + i} km`,
-  budget: "💲💲",
-  leadTime: "6-8 tyg",
-  rating: "8,0/10",
-  specialization: "Studio kuchni",
-  type: "na wymiar",
-  modules: "moduły",
-  installation: "Z montażem",
-  guarantee: "Gwar 2 lata",
-  appliances: "AGD",
-  project: "Projekt 0zł",
-  measurement: "Pomiar 0 zł",
-  contact: "Umów się",
-}));
+async function getCompanies(): Promise<Company[]> {
+  // TODO: Replace with real database query once available
+  return FALLBACK_COMPANIES;
+}
 
-const companies = [...baseCompanies, ...additionalCompanies];
+const EXCLUDED_FIELDS = new Set(['id', 'name', 'city', 'lat', 'lng', 'url']);
 
-export default function FirmyPage() {
+const humanizeKey = (key: string): string =>
+  key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .replace(/^./, (char) => char.toUpperCase());
+
+const formatValue = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+};
+
+export default async function FirmyPage() {
+  const companies = await getCompanies();
+
   return (
-    <main className="p-6 pb-24">
-      <h1 className="text-2xl font-bold mb-4">Firmy</h1>
-      <div className="overflow-x-auto">
-        <table className="min-w-max text-sm border border-blue-200 rounded-lg shadow-sm overflow-hidden">
-          <thead className="bg-blue-50">
-            <tr>
-              <th className="sticky left-0 z-10 bg-blue-50 px-4 py-2 text-left">
-                Firma
-              </th>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-4 py-2 text-left whitespace-nowrap"
-                >
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {companies.map((company, idx) => {
-              const rowBg = idx % 2 === 0 ? "bg-white" : "bg-gray-50";
-              return (
-                <tr key={company.name} className={`${rowBg} hover:bg-blue-50`}>
-                  <td
-                    className={`sticky left-0 z-10 ${rowBg} px-4 py-2 font-semibold text-blue-700`}
-                  >
-                    {company.name}
-                  </td>
-                  {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-2 whitespace-nowrap">
-                      {company[col.key as keyof typeof company]}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <main className="px-6 pb-24">
+      <section className="mx-auto max-w-6xl">
+        <CompanyMap companies={companies} />
+      </section>
+
+      <section className="mx-auto mt-12 max-w-6xl space-y-6">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-bold text-slate-900">Firmy partnerskie</h1>
+          <p className="max-w-3xl text-sm text-slate-600">
+            Poniżej znajdziesz listę firm dostępnych w naszym katalogu. Wersja mapowa
+            umożliwia szybkie wyszukanie partnerów w Twojej okolicy, a lista stanowi
+            tekstowy fallback dla wyszukiwarek i użytkowników preferujących klasyczny
+            przegląd.
+          </p>
+        </header>
+
+        <ul className="grid gap-6 sm:grid-cols-2">
+          {companies.map((company) => {
+            const additionalFields = Object.entries(company).filter(([key, value]) => {
+              if (EXCLUDED_FIELDS.has(key)) {
+                return false;
+              }
+
+              if (value === null || value === undefined || value === '') {
+                return false;
+              }
+
+              return true;
+            });
+
+            return (
+              <li key={company.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <article className="space-y-3">
+                  <header className="space-y-1">
+                    <h2 className="text-xl font-semibold text-slate-900">{company.name}</h2>
+                    {company.city ? (
+                      <p className="text-sm text-slate-500">{company.city}</p>
+                    ) : null}
+                    {company.url ? (
+                      <a
+                        href={company.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-blue-600 hover:underline"
+                      >
+                        Odwiedź stronę
+                      </a>
+                    ) : null}
+                  </header>
+
+                  {additionalFields.length > 0 ? (
+                    <dl className="space-y-1 text-sm text-slate-600">
+                      {additionalFields.map(([key, value]) => (
+                        <div key={key} className="flex justify-between gap-3">
+                          <dt className="font-medium text-slate-500">{humanizeKey(key)}</dt>
+                          <dd className="text-right text-slate-700">{formatValue(value)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : null}
+                </article>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
     </main>
   );
 }
-
