@@ -1,7 +1,15 @@
 // eslint.config.mjs
 // Flat-config (ESLint v9+) for Next.js 15 + TypeScript
 
-import '@rushstack/eslint-patch/modern-module-resolution.js';
+try {
+  await import('@rushstack/eslint-patch/modern-module-resolution.js');
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(
+    '[eslint] Nie udało się załadować patcha @rushstack/eslint-patch:',
+    message,
+  );
+}
 import next from 'eslint-config-next';
 
 export default [
