@@ -1,23 +1,8 @@
-const columns = [
-  { key: "specialization", label: "Specjalizacja" },
-  { key: "rating", label: "Ocena" },
-  { key: "distance", label: "Dystans" },
-  { key: "city", label: "Miasto" },
-  { key: "promotion", label: "Promocja" },
-  { key: "expires", label: "Ważność" },
-  { key: "budget", label: "Budżet" },
-  { key: "leadTime", label: "Realizacja" },
-  { key: "type", label: "Typ" },
-  { key: "modules", label: "Moduły" },
-  { key: "installation", label: "Montaż" },
-  { key: "guarantee", label: "Gwarancja" },
-  { key: "appliances", label: "AGD" },
-  { key: "project", label: "Projekt" },
-  { key: "measurement", label: "Pomiar" },
-  { key: "contact", label: "Akcje" },
-];
+import CompanyMap from "@/components/CompanyMap";
+import { companyColumns } from "@/lib/companyColumns";
+import type { Company } from "@/types/company";
 
-const baseCompanies = [
+const baseCompanies: Company[] = [
   {
     name: "IZI KUCHNIE",
     city: "Gdańsk",
@@ -36,6 +21,8 @@ const baseCompanies = [
     project: "Projekt 0zł",
     measurement: "Pomiar 250 zł",
     contact: "Umów się",
+    lat: 54.352025,
+    lng: 18.646638,
   },
   {
     name: "KUCHNIE LAJT",
@@ -55,6 +42,8 @@ const baseCompanies = [
     project: "Projekt 300zł",
     measurement: "Pomiar 0 zł",
     contact: "Umów się",
+    lat: 54.518889,
+    lng: 18.53054,
   },
   {
     name: "MOONER",
@@ -74,6 +63,8 @@ const baseCompanies = [
     project: "Projekt 0zł",
     measurement: "Pomiar 100 zł",
     contact: "Umów się",
+    lat: 54.441581,
+    lng: 18.560095,
   },
   {
     name: "DZIK DESIGN",
@@ -93,6 +84,8 @@ const baseCompanies = [
     project: "Projekt 0zł",
     measurement: "Pomiar 250 zł",
     contact: "Umów się",
+    lat: 54.360846,
+    lng: 18.638326,
   },
   {
     name: "BAIRI",
@@ -112,6 +105,8 @@ const baseCompanies = [
     project: "Projekt 0zł",
     measurement: "Pomiar 0 zł",
     contact: "Umów się",
+    lat: 54.500367,
+    lng: 18.548284,
   },
   {
     name: "FAMA DESIGN",
@@ -131,6 +126,8 @@ const baseCompanies = [
     project: "Projekt 0zł",
     measurement: "Pomiar 100 zł",
     contact: "Umów się",
+    lat: 54.444873,
+    lng: 18.569302,
   },
   {
     name: "Gdańskie",
@@ -150,34 +147,50 @@ const baseCompanies = [
     project: "Projekt 0zł",
     measurement: "Pomiar 0 zł",
     contact: "Umów się",
+    lat: 54.355278,
+    lng: 18.649444,
   },
 ];
 
-const additionalCompanies = Array.from({ length: 30 }, (_, i) => ({
-  name: `FIRMA ${i + 1}`,
-  city: "Warszawa",
-  promotion: "Promocja",
-  expires: `Jeszcze ${i + 5} dni`,
-  distance: `${10 + i} km`,
-  budget: "💲💲",
-  leadTime: "6-8 tyg",
-  rating: "8,0/10",
-  specialization: "Studio kuchni",
-  type: "na wymiar",
-  modules: "moduły",
-  installation: "Z montażem",
-  guarantee: "Gwar 2 lata",
-  appliances: "AGD",
-  project: "Projekt 0zł",
-  measurement: "Pomiar 0 zł",
-  contact: "Umów się",
-}));
+const additionalCompanies: Company[] = Array.from({ length: 30 }, (_, index) => {
+  const column = index % 6;
+  const row = Math.floor(index / 6);
+  const baseLat = 52.2297;
+  const baseLng = 21.0122;
+  const latOffset = (row - 2) * 0.05;
+  const lngOffset = (column - 2) * 0.06;
 
-const companies = [...baseCompanies, ...additionalCompanies];
+  return {
+    name: `FIRMA ${index + 1}`,
+    city: "Warszawa",
+    promotion: "Promocja",
+    expires: `Jeszcze ${index + 5} dni`,
+    distance: `${10 + index} km`,
+    budget: "💲💲",
+    leadTime: "6-8 tyg",
+    rating: "8,0/10",
+    specialization: "Studio kuchni",
+    type: "na wymiar",
+    modules: "moduły",
+    installation: "Z montażem",
+    guarantee: "Gwar 2 lata",
+    appliances: "AGD",
+    project: "Projekt 0zł",
+    measurement: "Pomiar 0 zł",
+    contact: "Umów się",
+    lat: baseLat + latOffset,
+    lng: baseLng + lngOffset,
+  };
+});
+
+const companies: Company[] = [...baseCompanies, ...additionalCompanies];
 
 export default function FirmyPage() {
   return (
     <main className="p-6 pb-24">
+      <section className="mb-6">
+        <CompanyMap companies={companies} />
+      </section>
       <h1 className="text-2xl font-bold mb-4">Firmy</h1>
       <div className="overflow-x-auto">
         <table className="min-w-max text-sm border border-blue-200 rounded-lg shadow-sm overflow-hidden">
@@ -186,7 +199,7 @@ export default function FirmyPage() {
               <th className="sticky left-0 z-10 bg-blue-50 px-4 py-2 text-left">
                 Firma
               </th>
-              {columns.map((col) => (
+              {companyColumns.map((col) => (
                 <th
                   key={col.key}
                   className="px-4 py-2 text-left whitespace-nowrap"
@@ -200,15 +213,15 @@ export default function FirmyPage() {
             {companies.map((company, idx) => {
               const rowBg = idx % 2 === 0 ? "bg-white" : "bg-gray-50";
               return (
-                <tr key={company.name} className={`${rowBg} hover:bg-blue-50`}>
+                <tr key={`${company.name}-${idx}`} className={`${rowBg} hover:bg-blue-50`}>
                   <td
                     className={`sticky left-0 z-10 ${rowBg} px-4 py-2 font-semibold text-blue-700`}
                   >
                     {company.name}
                   </td>
-                  {columns.map((col) => (
+                  {companyColumns.map((col) => (
                     <td key={col.key} className="px-4 py-2 whitespace-nowrap">
-                      {company[col.key as keyof typeof company]}
+                      {company[col.key]}
                     </td>
                   ))}
                 </tr>
@@ -220,4 +233,3 @@ export default function FirmyPage() {
     </main>
   );
 }
-
