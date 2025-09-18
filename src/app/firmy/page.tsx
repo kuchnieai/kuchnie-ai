@@ -1,15 +1,15 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import NextDynamic from 'next/dynamic'; // ⬅️ alias, żeby nie kolidowało z export const dynamic
 import type { Company } from '@/types/company';
 
-// ⬇️ Mapa tylko w przeglądarce — zero SSR, żeby nie wywaliło się na `window`.
-const CompanyMap = dynamic(() => import('@/components/CompanyMap'), {
+// Mapa tylko w przeglądarce (bez SSR), żeby build nie dotykał `window`.
+const CompanyMap = NextDynamic(() => import('@/components/CompanyMap'), {
   ssr: false,
   loading: () => <div className="h-96 w-full rounded-2xl bg-slate-100" />,
 });
 
-// Dla pewności wyłączamy jakiekolwiek próby pre-renderu/kejszowania tej strony.
+// Wyłączamy pre-render i cache dla tej strony.
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
@@ -103,13 +103,10 @@ const FALLBACK_COMPANIES: Company[] = [
 const EXCLUDED_FIELDS = new Set(['id', 'name', 'city', 'lat', 'lng', 'url']);
 
 const humanizeKey = (key: string): string =>
-  key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/_/g, ' ')
-    .replace(/^./, (char) => char.toUpperCase());
+  key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 const formatValue = (value: unknown): string => {
-  if (value === null || value === undefined) return '';
+  if (value == null) return '';
   if (Array.isArray(value)) return value.join(', ');
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
@@ -130,8 +127,7 @@ export default function FirmyPage() {
           <p className="max-w-3xl text-sm text-slate-600">
             Poniżej znajdziesz listę firm dostępnych w naszym katalogu. Wersja mapowa
             umożliwia szybkie wyszukanie partnerów w Twojej okolicy, a lista stanowi
-            tekstowy fallback dla wyszukiwarek i użytkowników preferujących klasyczny
-            przegląd.
+            tekstowy fallback dla wyszukiwarek i użytkowników preferujących klasyczny przegląd.
           </p>
         </header>
 
@@ -139,21 +135,16 @@ export default function FirmyPage() {
           {companies.map((company) => {
             const additionalFields = Object.entries(company).filter(([key, value]) => {
               if (EXCLUDED_FIELDS.has(key)) return false;
-              if (value === null || value === undefined || value === '') return false;
+              if (value === '' || value == null) return false;
               return true;
             });
 
             return (
-              <li
-                key={company.id}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-              >
+              <li key={company.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <article className="space-y-3">
                   <header className="space-y-1">
                     <h2 className="text-xl font-semibold text-slate-900">{company.name}</h2>
-                    {company.city ? (
-                      <p className="text-sm text-slate-500">{company.city}</p>
-                    ) : null}
+                    {company.city ? <p className="text-sm text-slate-500">{company.city}</p> : null}
                     {company.url ? (
                       <a
                         href={company.url}
