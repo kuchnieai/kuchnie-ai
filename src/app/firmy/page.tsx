@@ -123,9 +123,9 @@ export default function FirmyPage() {
 
       <section className="mx-auto mt-12 max-w-6xl space-y-6">
         <header className="space-y-2">
-          <h1 className="text-3xl font-bold text-slate-900">Firmy partnerskie</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Wykonawcy</h1>
           <p className="max-w-3xl text-sm text-slate-600">
-            Poniżej znajdziesz listę firm dostępnych w naszym katalogu. Wersja mapowa
+            Poniżej znajdziesz listę wykonawców dostępnych w naszym katalogu. Wersja mapowa
             umożliwia szybkie wyszukanie partnerów w Twojej okolicy, a lista stanowi
             tekstowy fallback dla wyszukiwarek i użytkowników preferujących klasyczny przegląd.
           </p>

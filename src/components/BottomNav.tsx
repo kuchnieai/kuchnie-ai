@@ -67,7 +67,7 @@ export default function BottomNav() {
               }`}
             >
               <span className="text-xl">🏢</span>
-              Firmy
+              Wykonawcy
             </Link>
           </li>
         </ul>
