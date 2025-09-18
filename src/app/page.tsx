@@ -23,6 +23,7 @@ type GenerateResponse = {
 const LOADING_KEY = 'isGenerating';
 const EVENT_GENERATION_FINISHED = 'generation-finished';
 const PROMPT_PLACEHOLDER = 'Opisz kuchnię';
+const BASE_BOTTOM_OFFSET = 64; // px equivalent of Tailwind bottom-16
 
 type FeatureOption = {
   label: string;
@@ -191,6 +192,7 @@ export default function Home() {
   const hasSelectedOptions = options.length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
   const [pendingFrame, setPendingFrame] = useState<{ prompt: string; aspectRatio: string } | null>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -231,6 +233,31 @@ export default function Home() {
   };
   useEffect(() => { autoResize(); }, [prompt]);
   useEffect(() => { autoResize(); }, []); // na wszelki wypadek po montażu
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) {
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const updateOffset = () => {
+      const innerHeight = window.innerHeight;
+      const viewportHeight = viewport.height;
+      const offsetTop = viewport.offsetTop;
+      const keyboardHeight = Math.max(0, innerHeight - (viewportHeight + offsetTop));
+      const rounded = Math.round(keyboardHeight);
+      setKeyboardOffset((prev) => (prev === rounded ? prev : rounded));
+    };
+
+    updateOffset();
+    viewport.addEventListener('resize', updateOffset);
+    viewport.addEventListener('scroll', updateOffset);
+
+    return () => {
+      viewport.removeEventListener('resize', updateOffset);
+      viewport.removeEventListener('scroll', updateOffset);
+    };
+  }, []);
 
   const applyPromptToEditor = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -692,6 +719,7 @@ export default function Home() {
     }
   };
 
+  const floatingBarBottom = `calc(env(safe-area-inset-bottom, 0px) + ${BASE_BOTTOM_OFFSET + keyboardOffset}px)`;
   const showEmptyState = projects.length === 0 && !pendingFrame;
 
   return (
@@ -741,7 +769,7 @@ export default function Home() {
         </section>
       )}
 
-        <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
+        <div className="fixed left-0 right-0 px-4 py-2" style={{ bottom: floatingBarBottom }}>
           <div className="flex items-stretch gap-2">
             <div
               className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
@@ -827,9 +855,10 @@ export default function Home() {
 
       {/* Sliding menu */}
       <div
-        className={`fixed bottom-16 left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
+        className={`fixed left-0 right-0 z-50 p-4 bg-white rounded-t-2xl shadow-lg max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
           menuOpen ? 'translate-y-0' : 'translate-y-full'
         } pb-20`}
+        style={{ bottom: floatingBarBottom }}
       >
         <button
           className="absolute top-3 right-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-3xl leading-none text-gray-600 shadow-sm"
