@@ -187,6 +187,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const hasSelectedOptions = options.length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
@@ -292,6 +293,7 @@ export default function Home() {
 
   useEffect(() => {
     setCopied(false);
+    setShowPrompt(false);
   }, [fullscreenIndex]);
 
   useEffect(() => {
@@ -978,12 +980,43 @@ export default function Home() {
             className="absolute bottom-4 left-4 right-4 flex flex-col gap-2"
             style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
           >
-            <div
-              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'} max-h-20 overflow-y-auto`}
-            >
-              <p>{projects[fullscreenIndex].prompt}</p>
-            </div>
+            {showPrompt && (
+              <div className="relative">
+                <div
+                  className={`text-white text-sm bg-black/60 p-3 pr-10 rounded-md break-words border ${
+                    copied ? 'border-white' : 'border-transparent'
+                  } max-h-20 overflow-y-auto`}
+                >
+                  <p>{projects[fullscreenIndex].prompt}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPrompt(false);
+                  }}
+                  className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/40 text-white text-sm border border-white/30"
+                  aria-label="Schowaj prompt"
+                  title="Schowaj prompt"
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
+              {!showPrompt && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPrompt(true);
+                  }}
+                  className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                  title="Pokaż prompt"
+                >
+                  Pokaż prompt
+                </button>
+              )}
               <button
                 type="button"
                 onClick={(e) => {
