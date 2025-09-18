@@ -539,7 +539,7 @@ export default function Home() {
   }, [fullscreenIndex, projects.length]);
 
   // --- GENEROWANIE + ZAPIS ---
-  const handleGenerate = async ({ focusTextarea = true }: { focusTextarea?: boolean } = {}) => {
+  const handleGenerate = async () => {
     if (!user) { alert('Zaloguj się!'); return; }
     const optionPrompts = options
       .map((label) => optionPromptByLabel(label))
@@ -565,11 +565,7 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('promptDraft');
     }
-    if (focusTextarea) {
-      textareaRef.current?.focus();
-    } else {
-      textareaRef.current?.blur();
-    }
+    textareaRef.current?.focus();
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) { throw sessionError; }
@@ -798,7 +794,7 @@ export default function Home() {
               </svg>
             </button>
             <button
-              onClick={() => { void handleGenerate(); }}
+              onClick={handleGenerate}
               disabled={loading || !hasPrompt}
               className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 ${
                 hasPrompt
@@ -904,7 +900,7 @@ export default function Home() {
             onClick={() => {
               if (loading || !hasSelectedOptions) return;
               setMenuOpen(false);
-              void handleGenerate({ focusTextarea: false });
+              handleGenerate();
             }}
             disabled={loading || !hasSelectedOptions}
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] ${
