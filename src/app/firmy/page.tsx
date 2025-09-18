@@ -1,5 +1,11 @@
-import CompanyMap from '@/components/CompanyMap';
+import dynamic from 'next/dynamic';
 import type { Company } from '@/types/company';
+
+// ⬇️ Ładujemy mapę tylko w przeglądarce (bez SSR), żeby build na Vercelu nie dotykał `window`.
+const CompanyMap = dynamic(() => import('@/components/CompanyMap'), {
+  ssr: false,
+  loading: () => <div className="h-96 w-full rounded-2xl bg-slate-100" />,
+});
 
 const FALLBACK_COMPANIES: Company[] = [
   {
@@ -102,18 +108,9 @@ const humanizeKey = (key: string): string =>
     .replace(/^./, (char) => char.toUpperCase());
 
 const formatValue = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return '';
-  }
-
-  if (Array.isArray(value)) {
-    return value.join(', ');
-  }
-
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-
+  if (value === null || value === undefined) return '';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 };
 
@@ -140,14 +137,8 @@ export default async function FirmyPage() {
         <ul className="grid gap-6 sm:grid-cols-2">
           {companies.map((company) => {
             const additionalFields = Object.entries(company).filter(([key, value]) => {
-              if (EXCLUDED_FIELDS.has(key)) {
-                return false;
-              }
-
-              if (value === null || value === undefined || value === '') {
-                return false;
-              }
-
+              if (EXCLUDED_FIELDS.has(key)) return false;
+              if (value === null || value === undefined || value === '') return false;
               return true;
             });
 
