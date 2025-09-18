@@ -2,7 +2,7 @@
 
 import 'leaflet/dist/leaflet.css';
 
-import type { LatLngBoundsExpression, LatLngExpression } from 'leaflet';
+import { divIcon, type LatLngBoundsExpression, type LatLngExpression } from 'leaflet';
 import { useEffect, useState } from 'react';
 
 import type { Company } from '@/types/company';
@@ -55,8 +55,26 @@ type LeafletRendererProps = {
   isFullscreen?: boolean;
 };
 
+const COMPANY_MARKER_ICON = divIcon({
+  className: '',
+  iconSize: [28, 40],
+  iconAnchor: [14, 36],
+  popupAnchor: [0, -32],
+  html: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
+      <path
+        d="M14 0C6.268 0 0 6.268 0 14c0 10.532 14 26 14 26s14-15.468 14-26C28 6.268 21.732 0 14 0z"
+        fill="#60a5fa"
+        stroke="#2563eb"
+        stroke-width="2"
+      />
+      <circle cx="14" cy="14" r="5" fill="#bfdbfe" />
+    </svg>
+  `,
+});
+
 const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRendererProps) => {
-  const { MapContainer, TileLayer, CircleMarker, Popup, useMap } = leaflet;
+  const { MapContainer, TileLayer, Marker, Popup, useMap } = leaflet;
 
   const FitBoundsHandler = ({ companies }: { companies: Company[] }) => {
     const map = useMap();
@@ -115,11 +133,10 @@ const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRe
         const additionalFields = extractFields(company);
 
         return (
-          <CircleMarker
+          <Marker
             key={company.id}
-            center={[company.lat, company.lng]}
-            radius={8}
-            pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 2 }}
+            position={[company.lat, company.lng]}
+            icon={COMPANY_MARKER_ICON}
           >
             <Popup className="!p-0" maxWidth={260} minWidth={200}>
               <div className="max-h-48 space-y-2 overflow-y-auto p-3">
@@ -151,7 +168,7 @@ const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRe
                 ) : null}
               </div>
             </Popup>
-          </CircleMarker>
+          </Marker>
         );
       })}
     </MapContainer>
