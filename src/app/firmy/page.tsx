@@ -1,11 +1,17 @@
+'use client';
+
 import dynamic from 'next/dynamic';
 import type { Company } from '@/types/company';
 
-// ⬇️ Ładujemy mapę tylko w przeglądarce (bez SSR), żeby build na Vercelu nie dotykał `window`.
+// ⬇️ Mapa tylko w przeglądarce — zero SSR, żeby nie wywaliło się na `window`.
 const CompanyMap = dynamic(() => import('@/components/CompanyMap'), {
   ssr: false,
   loading: () => <div className="h-96 w-full rounded-2xl bg-slate-100" />,
 });
+
+// Dla pewności wyłączamy jakiekolwiek próby pre-renderu/kejszowania tej strony.
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 const FALLBACK_COMPANIES: Company[] = [
   {
@@ -94,11 +100,6 @@ const FALLBACK_COMPANIES: Company[] = [
   },
 ];
 
-async function getCompanies(): Promise<Company[]> {
-  // TODO: Replace with real database query once available
-  return FALLBACK_COMPANIES;
-}
-
 const EXCLUDED_FIELDS = new Set(['id', 'name', 'city', 'lat', 'lng', 'url']);
 
 const humanizeKey = (key: string): string =>
@@ -114,8 +115,8 @@ const formatValue = (value: unknown): string => {
   return String(value);
 };
 
-export default async function FirmyPage() {
-  const companies = await getCompanies();
+export default function FirmyPage() {
+  const companies: Company[] = FALLBACK_COMPANIES;
 
   return (
     <main className="px-6 pb-24">
@@ -143,7 +144,10 @@ export default async function FirmyPage() {
             });
 
             return (
-              <li key={company.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <li
+                key={company.id}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              >
                 <article className="space-y-3">
                   <header className="space-y-1">
                     <h2 className="text-xl font-semibold text-slate-900">{company.name}</h2>
