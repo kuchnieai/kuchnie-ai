@@ -2,8 +2,13 @@
 
 import 'leaflet/dist/leaflet.css';
 
-import { divIcon, type LatLngBoundsExpression, type LatLngExpression } from 'leaflet';
-import { useEffect, useState } from 'react';
+import {
+  divIcon,
+  type LatLngBoundsExpression,
+  type LatLngExpression,
+  type Marker as LeafletMarker,
+} from 'leaflet';
+import { useEffect, useRef, useState } from 'react';
 
 import type { Company } from '@/types/company';
 
@@ -53,6 +58,8 @@ type LeafletRendererProps = {
   leaflet: ReactLeafletModule;
   companies: Company[];
   isFullscreen?: boolean;
+  selectedCompanyId?: string | null;
+  onSelect?: (companyId: string | null) => void;
 };
 
 const COMPANY_MARKER_ICON = divIcon({
@@ -73,8 +80,15 @@ const COMPANY_MARKER_ICON = divIcon({
   `,
 });
 
-const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRendererProps) => {
+const LeafletRenderer = ({
+  leaflet,
+  companies,
+  isFullscreen = false,
+  selectedCompanyId = null,
+  onSelect,
+}: LeafletRendererProps) => {
   const { MapContainer, TileLayer, Marker, Popup, useMap } = leaflet;
+  const markerRefs = useRef<Record<string, LeafletMarker | null>>({});
 
   const FitBoundsHandler = ({ companies }: { companies: Company[] }) => {
     const map = useMap();
@@ -116,6 +130,40 @@ const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRe
     return null;
   };
 
+  const SelectedMarkerHandler = ({
+    selectedCompanyId: activeCompanyId,
+    companies: companiesList,
+  }: {
+    selectedCompanyId: string | null;
+    companies: Company[];
+  }) => {
+    const mapInstance = useMap();
+
+    useEffect(() => {
+      if (!activeCompanyId) {
+        return;
+      }
+
+      const company = companiesList.find((item) => item.id === activeCompanyId);
+
+      if (!company) {
+        return;
+      }
+
+      const marker = markerRefs.current[activeCompanyId];
+
+      if (marker) {
+        marker.openPopup();
+      }
+
+      mapInstance.flyTo([company.lat, company.lng], SINGLE_POINT_ZOOM, {
+        duration: 0.7,
+      });
+    }, [activeCompanyId, companiesList, mapInstance]);
+
+    return null;
+  };
+
   return (
     <MapContainer
       center={DEFAULT_CENTER}
@@ -129,6 +177,10 @@ const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRe
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitBoundsHandler companies={companies} />
+      <SelectedMarkerHandler
+        selectedCompanyId={selectedCompanyId}
+        companies={companies}
+      />
       {companies.map((company) => {
         const additionalFields = extractFields(company);
 
@@ -137,6 +189,20 @@ const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRe
             key={company.id}
             position={[company.lat, company.lng]}
             icon={COMPANY_MARKER_ICON}
+            eventHandlers={{
+              click: () => onSelect?.(company.id),
+            }}
+            ref={(marker) => {
+              if (marker) {
+                markerRefs.current[company.id] = marker;
+
+                if (company.id === selectedCompanyId) {
+                  marker.openPopup();
+                }
+              } else {
+                delete markerRefs.current[company.id];
+              }
+            }}
           >
             <Popup className="!p-0" maxWidth={260} minWidth={200}>
               <div className="max-h-48 space-y-2 overflow-y-auto p-3">
@@ -177,9 +243,11 @@ const LeafletRenderer = ({ leaflet, companies, isFullscreen = false }: LeafletRe
 
 export type CompanyMapClientProps = {
   companies: Company[];
+  selectedCompanyId?: string | null;
+  onSelect?: (companyId: string | null) => void;
 };
 
-const CompanyMapClient = ({ companies }: CompanyMapClientProps) => {
+const CompanyMapClient = ({ companies, selectedCompanyId = null, onSelect }: CompanyMapClientProps) => {
   const [leaflet, setLeaflet] = useState<ReactLeafletModule | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -215,7 +283,12 @@ const CompanyMapClient = ({ companies }: CompanyMapClientProps) => {
   return (
     <div className="relative w-full">
       <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-lg">
-        <LeafletRenderer leaflet={leaflet} companies={companies} />
+        <LeafletRenderer
+          leaflet={leaflet}
+          companies={companies}
+          selectedCompanyId={selectedCompanyId}
+          onSelect={onSelect}
+        />
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end p-4">
           <button
             type="button"
@@ -238,7 +311,13 @@ const CompanyMapClient = ({ companies }: CompanyMapClientProps) => {
             ×
           </button>
           <div className="h-full w-full">
-            <LeafletRenderer leaflet={leaflet} companies={companies} isFullscreen />
+            <LeafletRenderer
+              leaflet={leaflet}
+              companies={companies}
+              isFullscreen
+              selectedCompanyId={selectedCompanyId}
+              onSelect={onSelect}
+            />
           </div>
         </div>
       ) : null}
