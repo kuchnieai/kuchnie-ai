@@ -12,8 +12,20 @@ const CompanyMapClient = dynamic(() => import('./CompanyMapClient'), {
 
 export type CompanyMapProps = {
   companies: Company[];
+  selectedCompanyId?: string | null;
+  onSelect?: (companyId: string | null) => void;
 };
 
-export default function CompanyMap({ companies }: CompanyMapProps) {
-  return <CompanyMapClient companies={companies} />;
+export default function CompanyMap({
+  companies,
+  selectedCompanyId = null,
+  onSelect,
+}: CompanyMapProps) {
+  return (
+    <CompanyMapClient
+      companies={companies}
+      selectedCompanyId={selectedCompanyId}
+      onSelect={onSelect}
+    />
+  );
 }
