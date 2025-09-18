@@ -190,6 +190,7 @@ export default function Home() {
   const hasPrompt = prompt.trim().length > 0;
   const hasSelectedOptions = options.length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
+  const [pendingFrame, setPendingFrame] = useState<{ prompt: string; aspectRatio: string } | null>(null);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -552,10 +553,12 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(LOADING_KEY, '1');
     }
+    const userPrompt = prompt; // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
+    const optionsPrompt = optionPrompts.join(', ');
+    const placeholderSource = userPrompt.trim() ? userPrompt : optionsPrompt;
+    const placeholderPrompt = placeholderSource && placeholderSource.trim() ? placeholderSource : 'Generowanie...';
+    setPendingFrame({ prompt: placeholderPrompt, aspectRatio });
     try {
-      // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
-      const userPrompt = prompt;
-
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) { throw sessionError; }
 
@@ -624,7 +627,10 @@ export default function Home() {
         sessionStorage.removeItem(LOADING_KEY);
         window.dispatchEvent(new Event(EVENT_GENERATION_FINISHED));
       }
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current) {
+        setPendingFrame(null);
+        setLoading(false);
+      }
     }
   };
 
@@ -686,6 +692,8 @@ export default function Home() {
     }
   };
 
+  const showEmptyState = projects.length === 0 && !pendingFrame;
+
   return (
     <main className="min-h-screen p-6 pb-40">
       <header className="mb-6 flex items-center gap-2">
@@ -693,10 +701,24 @@ export default function Home() {
         <h1 className="text-2xl font-bold">kuchnie.ai</h1>
       </header>
 
-      {projects.length === 0 ? (
+      {showEmptyState ? (
         <p className="text-gray-500">Na razie pusto – opisz kuchnię i wyślij!</p>
       ) : (
         <section className="columns-2 md:columns-3 gap-1">
+          {pendingFrame && (
+            <figure className="mb-1 break-inside-avoid relative">
+              <div
+                className="relative w-full led-border rounded-xl bg-white shadow-sm"
+                style={{ aspectRatio: pendingFrame.aspectRatio.replace(':', ' / ') }}
+              >
+                <div className="flex h-full w-full items-center justify-center p-4 text-center">
+                  <p className="w-full max-h-full overflow-y-auto whitespace-pre-wrap break-words text-sm text-gray-600">
+                    {pendingFrame.prompt}
+                  </p>
+                </div>
+              </div>
+            </figure>
+          )}
           {projects.map((p, i) => (
             <figure
               key={p.id}
