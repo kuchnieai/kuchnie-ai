@@ -549,15 +549,23 @@ export default function Home() {
       return;
     }
 
-    setLoading(true);
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem(LOADING_KEY, '1');
-    }
     const userPrompt = prompt; // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
     const optionsPrompt = optionPrompts.join(', ');
     const placeholderSource = userPrompt.trim() ? userPrompt : optionsPrompt;
     const placeholderPrompt = placeholderSource && placeholderSource.trim() ? placeholderSource : 'Generowanie...';
+
+    setLoading(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(LOADING_KEY, '1');
+    }
     setPendingFrame({ prompt: placeholderPrompt, aspectRatio });
+
+    setPrompt('');
+    setOptions([]);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('promptDraft');
+    }
+    textareaRef.current?.focus();
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) { throw sessionError; }
@@ -615,10 +623,6 @@ export default function Home() {
           sessionStorage.setItem('projectsCache', JSON.stringify([newProj, ...prev]));
         } catch { /* ignore */ }
       }
-
-      setPrompt('');
-      setOptions([]);
-      if (typeof window !== 'undefined') sessionStorage.removeItem('promptDraft');
     } catch (e) {
       console.error(e);
       alert(`Wyjątek: ${String(e)}`);
@@ -744,7 +748,7 @@ export default function Home() {
         <div className="fixed bottom-16 left-0 right-0 px-4 py-2">
           <div className="flex items-stretch gap-2">
             <div
-              className={`relative rounded-xl ${loading ? 'led-border' : ''} transition-all duration-300`}
+              className="relative rounded-xl transition-all duration-300"
               style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
             >
               <textarea
