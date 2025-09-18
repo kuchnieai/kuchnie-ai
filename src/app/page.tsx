@@ -186,12 +186,14 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
-  const [showPromptOverlay, setShowPromptOverlay] = useState(true);
+  const [showPromptOverlay, setShowPromptOverlay] = useState(false);
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const hasSelectedOptions = options.length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
   const [pendingFrame, setPendingFrame] = useState<{ prompt: string; aspectRatio: string } | null>(null);
+
+  const promptVisibilityLoaded = useRef(false);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -203,6 +205,19 @@ export default function Home() {
     window.addEventListener(EVENT_GENERATION_FINISHED, handler);
     return () => window.removeEventListener(EVENT_GENERATION_FINISHED, handler);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!promptVisibilityLoaded.current) {
+      const savedVisibility = localStorage.getItem('showPromptOverlay');
+      promptVisibilityLoaded.current = true;
+      if (savedVisibility !== null) {
+        setShowPromptOverlay(savedVisibility === 'true');
+        return;
+      }
+    }
+    localStorage.setItem('showPromptOverlay', showPromptOverlay ? 'true' : 'false');
+  }, [showPromptOverlay]);
 
   // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
   useEffect(() => {
@@ -293,12 +308,6 @@ export default function Home() {
 
   useEffect(() => {
     setCopied(false);
-  }, [fullscreenIndex]);
-
-  useEffect(() => {
-    if (fullscreenIndex !== null) {
-      setShowPromptOverlay(true);
-    }
   }, [fullscreenIndex]);
 
   useEffect(() => {
@@ -1030,18 +1039,20 @@ export default function Home() {
               >
                 Pokaż prompt
               </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const text = projects[fullscreenIndex].prompt;
-                  applyPromptToEditor(text);
-                }}
-                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
-                title="Użyj promptu"
-              >
-                Użyj promptu
-              </button>
+              {showPromptOverlay && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const text = projects[fullscreenIndex].prompt;
+                    applyPromptToEditor(text);
+                  }}
+                  className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                  title="Użyj promptu"
+                >
+                  Użyj promptu
+                </button>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
                 className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
