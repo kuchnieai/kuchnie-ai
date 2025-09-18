@@ -186,6 +186,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
+  const [showPromptOverlay, setShowPromptOverlay] = useState(true);
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const hasSelectedOptions = options.length > 0;
@@ -292,6 +293,12 @@ export default function Home() {
 
   useEffect(() => {
     setCopied(false);
+  }, [fullscreenIndex]);
+
+  useEffect(() => {
+    if (fullscreenIndex !== null) {
+      setShowPromptOverlay(true);
+    }
   }, [fullscreenIndex]);
 
   useEffect(() => {
@@ -978,12 +985,51 @@ export default function Home() {
             className="absolute bottom-4 left-4 right-4 flex flex-col gap-2"
             style={{ opacity: bgOpacity, transition: 'opacity 0.2s linear' }}
           >
-            <div
-              className={`text-white text-sm bg-black/60 p-2 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'} max-h-20 overflow-y-auto`}
-            >
-              <p>{projects[fullscreenIndex].prompt}</p>
-            </div>
-            <div className="flex justify-end gap-2">
+            {showPromptOverlay && (
+              <div
+                className={`relative text-white text-sm bg-black/60 p-3 rounded-md break-words border ${copied ? 'border-white' : 'border-transparent'} max-h-20 overflow-y-auto`}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPromptOverlay(false);
+                  }}
+                  className="absolute top-1 right-1 rounded-full p-1 text-white/80 hover:text-white transition"
+                  aria-label="Schowaj prompt"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+                <p className="pr-8">{projects[fullscreenIndex].prompt}</p>
+              </div>
+            )}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPromptOverlay(true);
+                }}
+                disabled={showPromptOverlay}
+                className={`text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50 transition ${
+                  showPromptOverlay ? 'opacity-60 cursor-default' : 'hover:bg-black/70'
+                }`}
+                title="Pokaż prompt"
+              >
+                Pokaż prompt
+              </button>
               <button
                 type="button"
                 onClick={(e) => {
