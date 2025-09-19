@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { ensureProfile } from '@/lib/profile';
 
@@ -192,8 +192,40 @@ export default function Home() {
   const hasSelectedOptions = options.length > 0;
   const [collapsedWidth, setCollapsedWidth] = useState(0);
   const [pendingFrame, setPendingFrame] = useState<{ prompt: string; aspectRatio: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchPinnedOpen, setSearchPinnedOpen] = useState(false);
+  const [searchHover, setSearchHover] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchIgnoreHover, setSearchIgnoreHover] = useState(false);
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const isSearchActive = normalizedSearch.length > 0;
+  const filteredProjectIndices = useMemo(() => {
+    if (!normalizedSearch) {
+      return projects.map((_, index) => index);
+    }
+    return projects.reduce<number[]>((acc, project, index) => {
+      if (project.prompt.toLowerCase().includes(normalizedSearch)) {
+        acc.push(index);
+      }
+      return acc;
+    }, []);
+  }, [projects, normalizedSearch]);
+  const visibleProjects = useMemo(
+    () => filteredProjectIndices.map(index => projects[index]),
+    [filteredProjectIndices, projects],
+  );
+  const pendingFrameMatchesSearch =
+    !!pendingFrame && (!isSearchActive || pendingFrame.prompt.toLowerCase().includes(normalizedSearch));
+  const showInitialEmptyState = projects.length === 0 && !pendingFrame;
+  const showNoSearchResults = isSearchActive && !pendingFrameMatchesSearch && visibleProjects.length === 0;
+  const isSearchOpen =
+    searchPinnedOpen ||
+    searchFocused ||
+    ((searchHover && !searchIgnoreHover) || isSearchActive);
 
   const promptVisibilityLoaded = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -330,11 +362,44 @@ export default function Home() {
     }
   }, [projects]);
 
-  const showPrev = () => {
-    setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
-  };
-  const showNext = () => {
-    setFullscreenIndex(i => (i === null ? i : (i + 1) % projects.length));
+  const showPrev = useCallback(() => {
+    if (filteredProjectIndices.length === 0) return;
+    setFullscreenIndex(current => {
+      if (current === null) return current;
+      const currentPosition = filteredProjectIndices.indexOf(current);
+      if (currentPosition === -1) {
+        return filteredProjectIndices[filteredProjectIndices.length - 1];
+      }
+      const prevPosition = (currentPosition - 1 + filteredProjectIndices.length) % filteredProjectIndices.length;
+      return filteredProjectIndices[prevPosition];
+    });
+  }, [filteredProjectIndices]);
+  const showNext = useCallback(() => {
+    if (filteredProjectIndices.length === 0) return;
+    setFullscreenIndex(current => {
+      if (current === null) return current;
+      const currentPosition = filteredProjectIndices.indexOf(current);
+      if (currentPosition === -1) {
+        return filteredProjectIndices[0];
+      }
+      const nextPosition = (currentPosition + 1) % filteredProjectIndices.length;
+      return filteredProjectIndices[nextPosition];
+    });
+  }, [filteredProjectIndices]);
+
+  const handleSearchToggle = () => {
+    if (isSearchOpen) {
+      setSearchPinnedOpen(false);
+      setSearchHover(false);
+      setSearchIgnoreHover(true);
+      setSearchFocused(false);
+      setSearchQuery('');
+      searchInputRef.current?.blur();
+    } else {
+      setSearchPinnedOpen(true);
+      setSearchIgnoreHover(false);
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -552,7 +617,14 @@ export default function Home() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [fullscreenIndex, projects.length]);
+  }, [fullscreenIndex, showNext, showPrev]);
+
+  useEffect(() => {
+    if (fullscreenIndex === null) return;
+    if (!filteredProjectIndices.includes(fullscreenIndex)) {
+      setFullscreenIndex(null);
+    }
+  }, [filteredProjectIndices, fullscreenIndex]);
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async ({ focusTextarea = true }: { focusTextarea?: boolean } = {}) => {
@@ -716,8 +788,6 @@ export default function Home() {
     }
   };
 
-  const showEmptyState = projects.length === 0 && !pendingFrame;
-
   return (
     <main className="min-h-screen p-6 pb-40">
       <header className="mb-6 flex items-center gap-2">
@@ -725,11 +795,15 @@ export default function Home() {
         <h1 className="text-2xl font-bold">kuchnie.ai</h1>
       </header>
 
-      {showEmptyState ? (
+      {showNoSearchResults ? (
+        <p className="text-gray-500">
+          Brak wyników dla „{searchQuery.trim()}”.
+        </p>
+      ) : showInitialEmptyState ? (
         <p className="text-gray-500">Na razie pusto – opisz kuchnię i wyślij!</p>
       ) : (
         <section className="columns-2 md:columns-3 gap-1">
-          {pendingFrame && (
+          {pendingFrameMatchesSearch && pendingFrame && (
             <figure className="mb-1 break-inside-avoid relative">
               <div
                 className="relative w-full led-border rounded-xl bg-white shadow-sm"
@@ -743,25 +817,28 @@ export default function Home() {
               </div>
             </figure>
           )}
-          {projects.map((p, i) => (
-            <figure
-              key={p.id}
-              className="mb-1 break-inside-avoid relative"
-            >
-              <img
-                src={p.imageUrl}
-                alt={p.prompt}
-                className="w-full h-auto object-cover cursor-pointer"
-                onClick={() => setFullscreenIndex(i)}
-                onError={(e) => {
-                  const el = e.currentTarget as HTMLImageElement;
-                  if (!el.src.includes('download=1')) {
-                    el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
-                  }
-                }}
-              />
-            </figure>
-          ))}
+          {visibleProjects.map((p, i) => {
+            const projectIndex = filteredProjectIndices[i];
+            return (
+              <figure
+                key={p.id}
+                className="mb-1 break-inside-avoid relative"
+              >
+                <img
+                  src={p.imageUrl}
+                  alt={p.prompt}
+                  className="w-full h-auto object-cover cursor-pointer"
+                  onClick={() => setFullscreenIndex(projectIndex)}
+                  onError={(e) => {
+                    const el = e.currentTarget as HTMLImageElement;
+                    if (!el.src.includes('download=1')) {
+                      el.src = `${el.src}${el.src.includes('?') ? '&' : '?'}download=1`;
+                    }
+                  }}
+                />
+              </figure>
+            );
+          })}
         </section>
       )}
 
@@ -769,74 +846,136 @@ export default function Home() {
           <div className="flex items-stretch gap-2">
             <div
               className="relative rounded-xl transition-all duration-300"
-              style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
+              style={hasPrompt
+                ? { flexGrow: 1, flexShrink: 1, minWidth: 0 }
+                : { flexGrow: 0, flexShrink: 0, width: `${collapsedWidth}px` }}
             >
               <textarea
-              ref={textareaRef}
-              rows={1}
-              value={prompt}
-              onChange={(e) => {
-                const value = e.target.value;
-                setPrompt(value);
-                if (typeof window !== 'undefined') {
-                  sessionStorage.setItem('promptDraft', value);
-                }
-                autoResize();
-                syncOptionsFromPrompt(value);
-              }}
-              placeholder={PROMPT_PLACEHOLDER}
-              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-fade-in`}
-            />
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className={`absolute ${hasPrompt ? 'right-12' : 'right-2'} top-1/2 -translate-y-1/2 p-2 transition-all duration-300`}
-              aria-label="Ustawienia"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
+                ref={textareaRef}
+                rows={1}
+                value={prompt}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPrompt(value);
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('promptDraft', value);
+                  }
+                  autoResize();
+                  syncOptionsFromPrompt(value);
+                }}
+                placeholder={PROMPT_PLACEHOLDER}
+                className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-fade-in`}
+              />
+              <button
+                onClick={() => setMenuOpen((o) => !o)}
+                className={`absolute ${hasPrompt ? 'right-12' : 'right-2'} top-1/2 -translate-y-1/2 p-2 transition-all duration-300`}
+                aria-label="Ustawienia"
               >
-                <line x1="4" y1="21" x2="4" y2="14" />
-                <line x1="4" y1="10" x2="4" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12" y2="3" />
-                <line x1="20" y1="21" x2="20" y2="16" />
-                <line x1="20" y1="12" x2="20" y2="3" />
-                <line x1="1" y1="14" x2="7" y2="14" />
-                <line x1="9" y1="8" x2="15" y2="8" />
-                <line x1="17" y1="16" x2="23" y2="16" />
-              </svg>
-            </button>
-            <button
-              onClick={() => { void handleGenerate(); }}
-              disabled={loading || !hasPrompt}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 ${
-                hasPrompt
-                  ? 'opacity-100 scale-100 disabled:opacity-50'
-                  : 'opacity-0 scale-90 pointer-events-none'
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-5 h-5"
+                >
+                  <line x1="4" y1="21" x2="4" y2="14" />
+                  <line x1="4" y1="10" x2="4" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12" y2="3" />
+                  <line x1="20" y1="21" x2="20" y2="16" />
+                  <line x1="20" y1="12" x2="20" y2="3" />
+                  <line x1="1" y1="14" x2="7" y2="14" />
+                  <line x1="9" y1="8" x2="15" y2="8" />
+                  <line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+              </button>
+              <button
+                onClick={() => { void handleGenerate(); }}
+                disabled={loading || !hasPrompt}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 transition-all duration-300 ${
+                  hasPrompt
+                    ? 'opacity-100 scale-100 disabled:opacity-50'
+                    : 'opacity-0 scale-90 pointer-events-none'
+                }`}
+                aria-label="Wyślij"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-5 h-5"
+                >
+                  <path d="M22 2L11 13" />
+                  <path d="M22 2L15 22l-4-9-9-4 20-7z" />
+                </svg>
+              </button>
+            </div>
+            <div
+              className={`relative flex items-center rounded-xl bg-[#f2f2f2] transition-all duration-300 ${
+                isSearchOpen ? 'pl-4 pr-12 py-3' : 'p-2'
               }`}
-              aria-label="Wyślij"
+              style={isSearchOpen
+                ? { flexGrow: 1, flexShrink: 1, minWidth: 0 }
+                : { flexGrow: 0, flexShrink: 0, width: '3rem' }}
+              onMouseEnter={() => {
+                if (!searchIgnoreHover) {
+                  setSearchHover(true);
+                }
+              }}
+              onMouseLeave={() => {
+                setSearchHover(false);
+                setSearchIgnoreHover(false);
+              }}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="w-5 h-5"
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  setSearchFocused(true);
+                  setSearchPinnedOpen(true);
+                  setSearchIgnoreHover(false);
+                }}
+                onBlur={() => {
+                  setSearchFocused(false);
+                  if (!searchQuery.trim()) {
+                    setSearchPinnedOpen(false);
+                  }
+                }}
+                placeholder="Wyszukaj kuchnie..."
+                className={`flex-1 bg-transparent text-lg outline-none transition-opacity duration-300 ${
+                  isSearchOpen ? 'opacity-100' : 'opacity-0'
+                }`}
+                style={{ pointerEvents: isSearchOpen ? 'auto' : 'none' }}
+              />
+              <button
+                type="button"
+                onClick={handleSearchToggle}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-700 transition-opacity"
+                aria-label={isSearchOpen ? 'Zwiń wyszukiwarkę' : 'Otwórz wyszukiwarkę'}
               >
-                <path d="M22 2L11 13" />
-                <path d="M22 2L15 22l-4-9-9-4 20-7z" />
-              </svg>
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-5 h-5"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="20" y1="20" x2="16.65" y2="16.65" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
