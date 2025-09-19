@@ -735,8 +735,8 @@ export default function Home() {
   return (
     <main className="min-h-screen p-6 pb-40">
       <header className="mb-6 flex items-center gap-2">
-        <img src="/logo.svg" alt="kitchens.click logo" className="w-8 h-8 md:w-10 md:h-10" />
-        <h1 className="text-2xl font-bold">kitchens.click</h1>
+        <img src="/logo.svg" alt="kuchnie.ai logo" className="w-8 h-8 md:w-10 md:h-10" />
+        <h1 className="text-2xl font-bold">kuchnie.ai</h1>
       </header>
 
       {showEmptyState ? (
