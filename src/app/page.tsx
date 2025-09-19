@@ -1028,7 +1028,7 @@ export default function Home() {
                     e.stopPropagation();
                     setShowPromptOverlay(false);
                   }}
-                  className="absolute top-1 right-1 rounded-full p-1 text-white/80 hover:text-white transition"
+                  className="absolute top-2 right-2 rounded-full p-2 text-white/90 hover:text-white hover:bg-white/10 transition"
                   aria-label="Schowaj prompt"
                 >
                   <svg
@@ -1039,7 +1039,7 @@ export default function Home() {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="h-4 w-4"
+                    className="h-6 w-6"
                   >
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
