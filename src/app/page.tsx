@@ -800,7 +800,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleClearPrompt}
-                  className="absolute -top-5 right-0 flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-3xl leading-none text-gray-600 shadow-sm"
+                  className="absolute right-2 top-0 -translate-y-[calc(100%+0.5rem)] flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-3xl leading-none text-gray-600 shadow-sm"
                   aria-label="Wyczyść opis"
                 >
                   ×
