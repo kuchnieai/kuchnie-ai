@@ -716,6 +716,15 @@ export default function Home() {
     }
   };
 
+  const handleClearPrompt = () => {
+    setPrompt('');
+    setOptions([]);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('promptDraft');
+    }
+    textareaRef.current?.blur();
+  };
+
   const showEmptyState = projects.length === 0 && !pendingFrame;
 
   return (
@@ -772,21 +781,31 @@ export default function Home() {
               style={{ width: hasPrompt ? '100%' : `${collapsedWidth}px`, flexGrow: hasPrompt ? 1 : 0 }}
             >
               <textarea
-              ref={textareaRef}
-              rows={1}
-              value={prompt}
-              onChange={(e) => {
-                const value = e.target.value;
-                setPrompt(value);
-                if (typeof window !== 'undefined') {
-                  sessionStorage.setItem('promptDraft', value);
-                }
-                autoResize();
-                syncOptionsFromPrompt(value);
-              }}
-              placeholder={PROMPT_PLACEHOLDER}
-              className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-fade-in`}
-            />
+                ref={textareaRef}
+                rows={1}
+                value={prompt}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPrompt(value);
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('promptDraft', value);
+                  }
+                  autoResize();
+                  syncOptionsFromPrompt(value);
+                }}
+                placeholder={PROMPT_PLACEHOLDER}
+                className={`w-full rounded-xl px-4 py-3 ${hasPrompt ? 'pr-20' : 'pr-12'} bg-[#f2f2f2] border-none resize-none min-h-12 text-lg overflow-y-auto transition-all duration-300 placeholder-fade-in`}
+              />
+              {hasPrompt && (
+                <button
+                  type="button"
+                  onClick={handleClearPrompt}
+                  className="absolute -top-5 right-0 flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-3xl leading-none text-gray-600 shadow-sm"
+                  aria-label="Wyczyść opis"
+                >
+                  ×
+                </button>
+              )}
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className={`absolute ${hasPrompt ? 'right-12' : 'right-2'} top-1/2 -translate-y-1/2 p-2 transition-all duration-300`}
