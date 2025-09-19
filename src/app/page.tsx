@@ -1073,18 +1073,54 @@ export default function Home() {
                 </button>
               )}
               <button
-                onClick={(e) => { e.stopPropagation(); handleDownload(projects[fullscreenIndex].imageUrl); }}
-                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(projects[fullscreenIndex].imageUrl);
+                }}
+                className="text-white rounded-md p-2 bg-black/60 border border-white/50 transition hover:bg-black/70"
                 title="Zapisz obraz w galerii"
+                aria-label="Pobierz obraz"
               >
-                Pobierz
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l4-4m-4 4l-4-4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 19.5h12" />
+                </svg>
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(projects[fullscreenIndex]); setFullscreenIndex(null); }}
-                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(projects[fullscreenIndex]);
+                  setFullscreenIndex(null);
+                }}
+                className="rounded-md p-2 bg-black/60 border border-white/50 transition hover:bg-black/70"
                 title="Usuń projekt"
+                aria-label="Usuń projekt"
               >
-                Usuń
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="h-5 w-5 text-red-500"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.545-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673A2.25 2.25 0 0 1 15.916 21.75H8.084a2.25 2.25 0 0 1-2.244-2.077L4.217 5.79m14.588 0a48.108 48.108 0 0 0-3.478-.397m-12.132.562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.02-2.09 2.2v.917m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                  />
+                </svg>
               </button>
             </div>
           </div>
