@@ -1044,20 +1044,19 @@ export default function Home() {
               </div>
             )}
             <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPromptOverlay(true);
-                }}
-                disabled={showPromptOverlay}
-                className={`text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50 transition ${
-                  showPromptOverlay ? 'opacity-60 cursor-default' : 'hover:bg-black/70'
-                }`}
-                title="Pokaż prompt"
-              >
-                Pokaż prompt
-              </button>
+              {!showPromptOverlay && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPromptOverlay(true);
+                  }}
+                  className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50 transition hover:bg-black/70"
+                  title="Pokaż prompt"
+                >
+                  Pokaż prompt
+                </button>
+              )}
               {showPromptOverlay && (
                 <button
                   type="button"
