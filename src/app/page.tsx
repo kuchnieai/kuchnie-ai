@@ -23,6 +23,7 @@ type GenerateResponse = {
 const LOADING_KEY = 'isGenerating';
 const EVENT_GENERATION_FINISHED = 'generation-finished';
 const PROMPT_PLACEHOLDER = 'Opisz kuchnię';
+const PROMPT_OVERLAY_STORAGE_KEY = 'showPromptOverlayV2';
 
 type FeatureOption = {
   label: string;
@@ -186,7 +187,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
-  const [showPromptOverlay, setShowPromptOverlay] = useState(false);
+  const [showPromptOverlay, setShowPromptOverlay] = useState(true);
   const [copied, setCopied] = useState(false);
   const hasPrompt = prompt.trim().length > 0;
   const hasSelectedOptions = options.length > 0;
@@ -209,14 +210,18 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!promptVisibilityLoaded.current) {
-      const savedVisibility = localStorage.getItem('showPromptOverlay');
+      const savedVisibility = localStorage.getItem(PROMPT_OVERLAY_STORAGE_KEY);
       promptVisibilityLoaded.current = true;
       if (savedVisibility !== null) {
         setShowPromptOverlay(savedVisibility === 'true');
         return;
       }
+      localStorage.removeItem('showPromptOverlay');
     }
-    localStorage.setItem('showPromptOverlay', showPromptOverlay ? 'true' : 'false');
+    localStorage.setItem(
+      PROMPT_OVERLAY_STORAGE_KEY,
+      showPromptOverlay ? 'true' : 'false',
+    );
   }, [showPromptOverlay]);
 
   // Przywróć wersję roboczą opisu kuchni po powrocie na stronę
