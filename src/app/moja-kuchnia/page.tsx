@@ -252,15 +252,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function clampNormalizedNumber(value: unknown): number | null {
+function sanitizeSketchNumber(value: unknown): number | null {
   if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
     return null;
-  }
-  if (value < 0) {
-    return 0;
-  }
-  if (value > 1) {
-    return 1;
   }
   return value;
 }
@@ -270,8 +264,8 @@ function sanitizeNormalizedPoint(value: unknown): NormalizedPoint | null {
     return null;
   }
 
-  const x = clampNormalizedNumber(value.x);
-  const y = clampNormalizedNumber(value.y);
+  const x = sanitizeSketchNumber(value.x);
+  const y = sanitizeSketchNumber(value.y);
   if (x === null || y === null) {
     return null;
   }

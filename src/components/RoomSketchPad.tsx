@@ -57,6 +57,16 @@ type CanvasMetrics = {
 
 type DrawOperation = Operation | DraftOperation;
 
+type FullscreenElement = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+  webkitEnterFullscreen?: () => Promise<void> | void;
+};
+
+type FullscreenDocument = Document & {
+  webkitExitFullscreen?: () => Promise<void> | void;
+  webkitFullscreenElement?: Element | null;
+};
+
 type Props = {
   value: RoomSketchValue;
   onChange: (next: RoomSketchValue) => void;
@@ -107,15 +117,9 @@ function normalizeViewport(viewport: ViewportState): ViewportState {
   };
 }
 
-function clampNormalized(value: number): number {
+function sanitizeNormalized(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
     return 0;
-  }
-  if (value < 0) {
-    return 0;
-  }
-  if (value > 1) {
-    return 1;
   }
   return value;
 }
@@ -337,13 +341,13 @@ function convertDraftToOperation(draft: DraftOperation, operations: Operation[])
       id,
       type: 'freehand',
       thickness: draft.thickness,
-      points: points.map((point) => ({ x: clampNormalized(point.x), y: clampNormalized(point.y) })),
+      points: points.map((point) => ({ x: sanitizeNormalized(point.x), y: sanitizeNormalized(point.y) })),
     };
   }
 
   if (draft.type === 'dimension') {
-    const start = { x: clampNormalized(draft.start.x), y: clampNormalized(draft.start.y) };
-    const end = { x: clampNormalized(draft.end.x), y: clampNormalized(draft.end.y) };
+    const start = { x: sanitizeNormalized(draft.start.x), y: sanitizeNormalized(draft.start.y) };
+    const end = { x: sanitizeNormalized(draft.end.x), y: sanitizeNormalized(draft.end.y) };
 
     if (start.x === end.x && start.y === end.y) {
       return null;
@@ -365,8 +369,8 @@ function convertDraftToOperation(draft: DraftOperation, operations: Operation[])
     };
   }
 
-  const start = { x: clampNormalized(draft.start.x), y: clampNormalized(draft.start.y) };
-  const end = { x: clampNormalized(draft.end.x), y: clampNormalized(draft.end.y) };
+  const start = { x: sanitizeNormalized(draft.start.x), y: sanitizeNormalized(draft.start.y) };
+  const end = { x: sanitizeNormalized(draft.end.x), y: sanitizeNormalized(draft.end.y) };
 
   if (start.x === end.x && start.y === end.y) {
     return {
@@ -396,8 +400,8 @@ function getNormalizedPoint(
   const height = rect.height > 0 ? rect.height : 1;
   const localX = (clientX - rect.left - viewport.offsetX) / viewport.scale;
   const localY = (clientY - rect.top - viewport.offsetY) / viewport.scale;
-  const x = clampNormalized(localX / width);
-  const y = clampNormalized(localY / height);
+  const x = sanitizeNormalized(localX / width);
+  const y = sanitizeNormalized(localY / height);
   return { x, y };
 }
 
@@ -452,29 +456,59 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   }, [className, isFullscreen]);
 
   const handleEnterFullscreen = useCallback(() => {
-    const element = rootRef.current;
-    if (element && element.requestFullscreen) {
-      element
-        .requestFullscreen()
-        .then(() => {
-          // noop
-        })
-        .catch(() => {
+    const element = rootRef.current as FullscreenElement | null;
+    if (!element) {
+      return;
+    }
+
+    const requestFullscreen =
+      element.requestFullscreen?.bind(element) ??
+      element.webkitRequestFullscreen?.bind(element) ??
+      element.webkitEnterFullscreen?.bind(element);
+
+    if (!requestFullscreen) {
+      return;
+    }
+
+    try {
+      const result = requestFullscreen();
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch(() => {
           // ignorujemy błędy związane z odmową pełnego ekranu
         });
+      }
+    } catch {
+      // ignorujemy błędy związane z odmową pełnego ekranu
     }
   }, []);
 
   const handleExitFullscreen = useCallback(() => {
-    if (typeof document !== 'undefined' && document.fullscreenElement) {
-      document
-        .exitFullscreen()
-        .then(() => {
-          // noop
-        })
-        .catch(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const doc = document as FullscreenDocument;
+    const fullscreenElement = document.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+    if (!fullscreenElement) {
+      return;
+    }
+
+    const exitFullscreen =
+      document.exitFullscreen?.bind(document) ?? doc.webkitExitFullscreen?.bind(doc);
+
+    if (!exitFullscreen) {
+      return;
+    }
+
+    try {
+      const result = exitFullscreen();
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch(() => {
           // ignorujemy błędy związane z wyjściem z pełnego ekranu
         });
+      }
+    } catch {
+      // ignorujemy błędy związane z wyjściem z pełnego ekranu
     }
   }, []);
 
@@ -548,13 +582,18 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return () => {};
     }
 
+    const doc = document as FullscreenDocument;
+
     const handleFullscreenChange = () => {
-      setIsFullscreen(document.fullscreenElement === rootRef.current);
+      const fullscreenElement = document.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+      setIsFullscreen(fullscreenElement === rootRef.current);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
     };
   }, []);
 
