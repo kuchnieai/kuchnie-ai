@@ -886,9 +886,14 @@ export default function Home() {
 
       {/* Sliding menu */}
       <div
-        className={`fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-lg rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-100 max-h-[75%] overflow-y-auto transform transition-transform duration-300 ${
-          menuOpen ? 'translate-y-0' : 'translate-y-full'
-        } pb-20`}
+        className={`fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-lg rounded-3xl bg-white/95 p-4 shadow-xl ring-1 ring-slate-100 max-h-[75%] overflow-y-auto transition-transform duration-300 pb-20 ${
+          menuOpen ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
+        style={{
+          transform: menuOpen
+            ? 'translateY(0)'
+            : 'translateY(calc(100% + 6rem + env(safe-area-inset-bottom, 0px)))',
+        }}
       >
         <button
           className="absolute top-3 right-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#f2f2f2] text-3xl leading-none text-gray-600 shadow-sm"
