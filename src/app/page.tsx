@@ -108,6 +108,8 @@ const FEATURE_OPTIONS: FeatureOption[] = [
   ...SIZE_FEATURE_OPTIONS,
 ];
 
+const CUSTOM_PROJECT_URL = '/firmy';
+
 const optionPromptByLabel = (label: string) =>
   FEATURE_OPTIONS.find((opt) => opt.label === label)?.promptText;
 
@@ -692,6 +694,12 @@ export default function Home() {
   };
 
   // --- ZAPIS DO GALERII ---
+  const openCustomProjectPage = () => {
+    if (typeof window !== 'undefined') {
+      window.open(CUSTOM_PROJECT_URL, '_blank');
+    }
+  };
+
   const handleDownload = async (url: string) => {
     try {
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1080,6 +1088,18 @@ export default function Home() {
                   Użyj promptu
                 </button>
               )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openCustomProjectPage();
+                }}
+                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50 transition hover:bg-black/70"
+                title="Projekt na wymiar"
+                aria-label="Otwórz Projekt na wymiar"
+              >
+                Projekt na wymiar
+              </button>
               <button
                 type="button"
                 onClick={(e) => {
