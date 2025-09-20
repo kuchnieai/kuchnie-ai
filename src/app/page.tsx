@@ -570,6 +570,10 @@ export default function Home() {
       return;
     }
 
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     const userPrompt = prompt; // zapisz oryginalny prompt użytkownika, zanim go wyczyścimy z inputu
     const optionsPrompt = optionPrompts.join(', ');
     const placeholderSource = userPrompt.trim() ? userPrompt : optionsPrompt;
