@@ -233,7 +233,7 @@ const CATEGORIES: Category[] = [
 const STORAGE_KEY = 'kuchnie-ai:moja-kuchnia';
 
 function createEmptySketch(): RoomSketchValue {
-  return { operations: [] };
+  return { operations: [], measurements: {} };
 }
 
 const createEmptySelections = () =>
@@ -273,6 +273,10 @@ function sanitizeNormalizedPoint(value: unknown): NormalizedPoint | null {
   return { x, y };
 }
 
+function sanitizeStrokeColor(value: unknown): Operation['color'] {
+  return value === 'note' ? 'note' : 'dimension';
+}
+
 function sanitizeOperation(value: unknown): Operation | null {
   if (!isRecord(value)) {
     return null;
@@ -301,6 +305,7 @@ function sanitizeOperation(value: unknown): Operation | null {
       type: 'freehand',
       thickness,
       points,
+      color: sanitizeStrokeColor(value.color),
     };
   }
 
@@ -322,6 +327,7 @@ function sanitizeOperation(value: unknown): Operation | null {
       thickness,
       start,
       end,
+      color: sanitizeStrokeColor(value.color),
     };
   }
 
@@ -339,10 +345,48 @@ function sanitizeOperation(value: unknown): Operation | null {
       position,
       text: value.text,
       size,
+      color: sanitizeStrokeColor(value.color),
     };
   }
 
   return null;
+}
+
+function sanitizeMeasurements(
+  value: unknown,
+  operations: Operation[],
+): RoomSketchValue['measurements'] {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string',
+  );
+  if (entries.length === 0) {
+    return {};
+  }
+
+  const dimensionIds = new Set(
+    operations
+      .filter((operation) => operation.type === 'line' && (operation.color ?? 'dimension') === 'dimension')
+      .map((operation) => operation.id),
+  );
+
+  const result: Record<string, string> = {};
+  entries.forEach(([key, rawValue]) => {
+    if (dimensionIds.has(key)) {
+      result[key] = rawValue;
+    }
+  });
+
+  dimensionIds.forEach((id) => {
+    if (!(id in result)) {
+      result[id] = '';
+    }
+  });
+
+  return result;
 }
 
 function sanitizeSketchValue(value: unknown): RoomSketchValue {
@@ -355,7 +399,9 @@ function sanitizeSketchValue(value: unknown): RoomSketchValue {
     .map((entry) => sanitizeOperation(entry))
     .filter((entry): entry is Operation => entry !== null);
 
-  return { operations };
+  const measurements = sanitizeMeasurements(value.measurements, operations);
+
+  return { operations, measurements };
 }
 
 export default function MyKitchenPage() {
