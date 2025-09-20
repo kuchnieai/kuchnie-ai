@@ -4,17 +4,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 export type NormalizedPoint = { x: number; y: number };
+export type DimensionOperation = {
+  id: string;
+  type: 'dimension';
+  start: NormalizedPoint;
+  end: NormalizedPoint;
+  label: number;
+  measurement: string;
+};
+
 export type Operation =
   | { id: string; type: 'freehand'; thickness: number; points: NormalizedPoint[] }
   | { id: string; type: 'line'; thickness: number; start: NormalizedPoint; end: NormalizedPoint }
-  | { id: string; type: 'text'; position: NormalizedPoint; text: string; size: number };
+  | { id: string; type: 'text'; position: NormalizedPoint; text: string; size: number }
+  | DimensionOperation;
 export type RoomSketchValue = { operations: Operation[] };
 
 type DraftOperation =
   | { type: 'freehand'; thickness: number; points: NormalizedPoint[] }
-  | { type: 'line'; thickness: number; start: NormalizedPoint; end: NormalizedPoint };
+  | { type: 'line'; thickness: number; start: NormalizedPoint; end: NormalizedPoint }
+  | { type: 'dimension'; label: number; start: NormalizedPoint; end: NormalizedPoint };
 
-type Tool = 'freehand' | 'line' | 'text';
+type Tool = 'freehand' | 'line' | 'text' | 'dimension';
 
 type CanvasMetrics = {
   width: number;
@@ -36,10 +47,23 @@ export type RoomSketchPadProps = Props;
 
 const THICKNESS_PRESETS = [2, 4, 6, 10] as const;
 const PRIMARY_STROKE_COLOR = '#0f172a';
+const DIMENSION_STROKE_COLOR = '#ef4444';
+const DIMENSION_LINE_WIDTH = 2;
+const DIMENSION_LABEL_FONT_SIZE = 16;
+
+function isDimensionOperation(operation: Operation): operation is DimensionOperation {
+  return operation.type === 'dimension';
+}
 
 const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: string }[] = [
   { value: 'freehand', label: 'Odręczny', description: 'Rysuj swobodnie palcem lub myszą.', icon: '✏️' },
   { value: 'line', label: 'Linia', description: 'Rysuj proste odcinki.', icon: '📐' },
+  {
+    value: 'dimension',
+    label: 'Wymiary',
+    description: 'Dodaj linie pomocnicze z numeracją.',
+    icon: '📏',
+  },
   { value: 'text', label: 'Tekst', description: 'Dodaj podpisy lub wymiary.', icon: '🔤' },
 ];
 
@@ -146,6 +170,40 @@ function drawOperation(
     return;
   }
 
+  if (operation.type === 'dimension') {
+    const start = denormalizePoint(operation.start, metrics);
+    const end = denormalizePoint(operation.end, metrics);
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = DIMENSION_LINE_WIDTH;
+    ctx.strokeStyle = DIMENSION_STROKE_COLOR;
+    ctx.globalAlpha = options?.isDraft ? 0.6 : 1;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+
+    const centerX = (start.x + end.x) / 2;
+    const centerY = (start.y + end.y) / 2;
+    const label = `${operation.label}`;
+    ctx.font = `${DIMENSION_LABEL_FONT_SIZE}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const padding = 4;
+    const textMetrics = ctx.measureText(label);
+    const textWidth = textMetrics.width + padding * 2;
+    const textHeight = DIMENSION_LABEL_FONT_SIZE + padding * 2;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillRect(centerX - textWidth / 2, centerY - textHeight / 2, textWidth, textHeight);
+
+    ctx.fillStyle = DIMENSION_STROKE_COLOR;
+    ctx.fillText(label, centerX, centerY);
+    ctx.restore();
+    return;
+  }
+
   const position = denormalizePoint(operation.position, metrics);
   ctx.save();
   ctx.fillStyle = PRIMARY_STROKE_COLOR;
@@ -182,7 +240,7 @@ function thicknessToFontSize(thickness: number): number {
   return Math.round(thickness * 6);
 }
 
-function convertDraftToOperation(draft: DraftOperation): Operation | null {
+function convertDraftToOperation(draft: DraftOperation, operations: Operation[]): Operation | null {
   const id = createOperationId();
 
   if (draft.type === 'freehand') {
@@ -195,6 +253,30 @@ function convertDraftToOperation(draft: DraftOperation): Operation | null {
       type: 'freehand',
       thickness: draft.thickness,
       points: points.map((point) => ({ x: clampNormalized(point.x), y: clampNormalized(point.y) })),
+    };
+  }
+
+  if (draft.type === 'dimension') {
+    const start = { x: clampNormalized(draft.start.x), y: clampNormalized(draft.start.y) };
+    const end = { x: clampNormalized(draft.end.x), y: clampNormalized(draft.end.y) };
+
+    if (start.x === end.x && start.y === end.y) {
+      return null;
+    }
+
+    const existingDimensions = operations.filter(isDimensionOperation);
+    const label =
+      Number.isFinite(draft.label) && draft.label > 0
+        ? Math.round(draft.label)
+        : existingDimensions.length + 1;
+
+    return {
+      id,
+      type: 'dimension',
+      start,
+      end,
+      label,
+      measurement: '',
     };
   }
 
@@ -238,6 +320,14 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [tool, setTool] = useState<Tool>('freehand');
   const [thickness, setThickness] = useState<number>(THICKNESS_PRESETS[1]);
   const [draft, setDraft] = useState<DraftOperation | null>(null);
+  const dimensionOperations = useMemo(
+    () =>
+      value.operations
+        .filter(isDimensionOperation)
+        .slice()
+        .sort((a, b) => a.label - b.label),
+    [value.operations],
+  );
 
   const combinedClassName = useMemo(
     () =>
@@ -248,6 +338,19 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         .filter(Boolean)
         .join(' '),
     [className],
+  );
+
+  const handleDimensionMeasurementChange = useCallback(
+    (id: string, measurement: string) => {
+      onChange({
+        operations: operationsRef.current.map((operation) =>
+          operation.type === 'dimension' && operation.id === id
+            ? { ...operation, measurement }
+            : operation,
+        ),
+      });
+    },
+    [onChange],
   );
 
   const redraw = useCallback(() => {
@@ -311,7 +414,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return;
     }
 
-    const operation = convertDraftToOperation(currentDraft);
+    const operation = convertDraftToOperation(currentDraft, operationsRef.current);
     setDraft(null);
 
     if (!operation) {
@@ -362,6 +465,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return;
       }
 
+      if (tool === 'dimension') {
+        const currentDimensions = operationsRef.current.filter(isDimensionOperation);
+        setDraft({ type: 'dimension', label: currentDimensions.length + 1, start: point, end: point });
+        return;
+      }
+
       setDraft({ type: 'line', thickness, start: point, end: point });
     },
     [onChange, thickness, tool],
@@ -389,6 +498,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       if (previous.type === 'freehand') {
         return { ...previous, points: [...previous.points, point] };
+      }
+
+      if (previous.type === 'dimension') {
+        return { ...previous, end: point };
       }
 
       return { ...previous, end: point };
@@ -450,7 +563,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     onChange({ operations: [] });
   }, [onChange]);
 
-  const isTextTool = tool === 'text';
   const canUndo = value.operations.length > 0;
   const canClear = value.operations.length > 0;
 
@@ -497,7 +609,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               type="button"
               onClick={() => setThickness(preset)}
               aria-pressed={isActive}
-              className={`rounded-full border px-3 py-1 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+              disabled={tool === 'dimension'}
+              className={`rounded-full border px-3 py-1 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-60 ${
                 isActive
                   ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
@@ -529,9 +642,58 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         />
       </div>
 
+      {dimensionOperations.length > 0 && (
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <div className="space-y-1">
+            <h4 className="text-sm font-semibold text-slate-900">Tabela wymiarów</h4>
+            <p className="text-xs text-slate-500">
+              Uzupełnij rzeczywiste wartości w centymetrach dla każdej czerwonej linii pomocniczej.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm text-slate-700">
+              <thead>
+                <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <th scope="col" className="px-3 py-2 text-left font-semibold">
+                    Wymiar
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-left font-semibold">
+                    Rzeczywista długość [cm]
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white/70">
+                {dimensionOperations.map((operation) => (
+                  <tr key={operation.id}>
+                    <td className="px-3 py-2 font-medium text-slate-900">#{operation.label}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={operation.measurement}
+                          onChange={(event) => handleDimensionMeasurementChange(operation.id, event.target.value)}
+                          placeholder="np. 120"
+                          className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                        />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">cm</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          {isTextTool ? 'Kliknij na kratkę, aby dodać tekst.' : 'Przeciągnij po kratce, aby narysować element.'}
+          {tool === 'text'
+            ? 'Kliknij na kratkę, aby dodać tekst.'
+            : tool === 'dimension'
+              ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
+              : 'Przeciągnij po kratce, aby narysować element.'}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
