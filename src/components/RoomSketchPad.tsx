@@ -239,7 +239,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const combinedClassName = useMemo(
     () =>
       [
-        'flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur-sm',
+        '-ml-4 box-border w-[calc(100%_+_2rem)] flex flex-col gap-4 rounded-none border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:box-content sm:ml-0 sm:w-full sm:rounded-3xl sm:p-6',
         className ?? '',
       ]
         .filter(Boolean)
@@ -508,7 +508,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       <div
         ref={containerRef}
-        className="relative min-h-[320px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white"
+        className="relative min-h-[280px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white max-h-[min(100vh,640px)] sm:min-h-[320px] sm:max-h-none"
         style={{
           backgroundImage:
             'linear-gradient(to right, rgba(148, 163, 184, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.2) 1px, transparent 1px)',
