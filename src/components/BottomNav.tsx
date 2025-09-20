@@ -20,8 +20,17 @@ export default function BottomNav() {
             className="absolute bottom-16 left-0 right-0 bg-white shadow"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4">
-              <AuthButtons />
+            <div className="space-y-4 p-4">
+              <Link
+                href="/moja-kuchnia"
+                onClick={() => setMenuOpen(false)}
+                className="block rounded-xl bg-[#f2f2f2] px-4 py-3 text-base font-medium text-gray-800 transition hover:bg-[#e5e5e5]"
+              >
+                Moja kuchnia
+              </Link>
+              <div className="border-t border-gray-100 pt-4">
+                <AuthButtons />
+              </div>
             </div>
           </div>
         </div>
