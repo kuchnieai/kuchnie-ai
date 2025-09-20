@@ -761,9 +761,18 @@ export default function Home() {
                 style={{ aspectRatio: pendingFrame.aspectRatio.replace(':', ' / ') }}
               >
                 <div className="flex h-full w-full items-center justify-center p-4 text-center">
-                  <p className="w-full max-h-full overflow-y-auto whitespace-pre-wrap break-words text-sm text-gray-600">
-                    {pendingFrame.prompt}
-                  </p>
+                  <div className="flex w-full max-w-sm flex-col items-center gap-4">
+                    <span
+                      className="h-12 w-12 animate-spin rounded-full border-4 border-orange-400 border-t-transparent"
+                      aria-hidden="true"
+                    />
+                    <p className="text-base font-medium text-gray-700">
+                      Kuchnia jest w trakcie generowania…
+                    </p>
+                    <p className="w-full max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-sm text-gray-500">
+                      {pendingFrame.prompt}
+                    </p>
+                  </div>
                 </div>
               </div>
             </figure>
