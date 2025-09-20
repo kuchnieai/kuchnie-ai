@@ -27,7 +27,7 @@ const combinedRules = {
 
 export default [
   {
-    ignores: ['.next/**/*', 'node_modules/**/*'],
+    ignores: ['.next/**/*', 'node_modules/**/*', 'next-env.d.ts'],
   },
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
