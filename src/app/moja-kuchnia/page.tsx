@@ -1,6 +1,9 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
+
+import type { NormalizedPoint, Operation, RoomSketchPadProps, RoomSketchValue } from '@/components/RoomSketchPad';
 
 type Option = {
   value: string;
@@ -17,6 +20,10 @@ type Category = {
   type: 'single' | 'multi';
   options: Option[];
 };
+
+const RoomSketchPad = dynamic<RoomSketchPadProps>(() => import('@/components/RoomSketchPad'), {
+  ssr: false,
+});
 
 const ROOM_FEATURE_OPTIONS: Option[] = [
   {
@@ -225,14 +232,135 @@ const CATEGORIES: Category[] = [
 
 const STORAGE_KEY = 'kuchnie-ai:moja-kuchnia';
 
+function createEmptySketch(): RoomSketchValue {
+  return { operations: [] };
+}
+
 const createEmptySelections = () =>
   CATEGORIES.reduce<Record<string, string[]>>((acc, category) => {
     acc[category.id] = [];
     return acc;
   }, {});
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function clampNormalizedNumber(value: unknown): number | null {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+    return null;
+  }
+  if (value < 0) {
+    return 0;
+  }
+  if (value > 1) {
+    return 1;
+  }
+  return value;
+}
+
+function sanitizeNormalizedPoint(value: unknown): NormalizedPoint | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const x = clampNormalizedNumber(value.x);
+  const y = clampNormalizedNumber(value.y);
+  if (x === null || y === null) {
+    return null;
+  }
+
+  return { x, y };
+}
+
+function sanitizeOperation(value: unknown): Operation | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (typeof value.id !== 'string') {
+    return null;
+  }
+
+  if (value.type === 'freehand') {
+    const rawPoints = Array.isArray(value.points) ? value.points : [];
+    const points = rawPoints
+      .map((entry) => sanitizeNormalizedPoint(entry))
+      .filter((entry): entry is NormalizedPoint => entry !== null);
+    if (points.length === 0) {
+      return null;
+    }
+
+    const thickness =
+      typeof value.thickness === 'number' && Number.isFinite(value.thickness) && value.thickness > 0
+        ? value.thickness
+        : 2;
+
+    return {
+      id: value.id,
+      type: 'freehand',
+      thickness,
+      points,
+    };
+  }
+
+  if (value.type === 'line') {
+    const start = sanitizeNormalizedPoint(value.start);
+    const end = sanitizeNormalizedPoint(value.end);
+    if (!start || !end) {
+      return null;
+    }
+
+    const thickness =
+      typeof value.thickness === 'number' && Number.isFinite(value.thickness) && value.thickness > 0
+        ? value.thickness
+        : 2;
+
+    return {
+      id: value.id,
+      type: 'line',
+      thickness,
+      start,
+      end,
+    };
+  }
+
+  if (value.type === 'text') {
+    const position = sanitizeNormalizedPoint(value.position);
+    if (!position || typeof value.text !== 'string') {
+      return null;
+    }
+
+    const size = typeof value.size === 'number' && Number.isFinite(value.size) && value.size > 0 ? value.size : 16;
+
+    return {
+      id: value.id,
+      type: 'text',
+      position,
+      text: value.text,
+      size,
+    };
+  }
+
+  return null;
+}
+
+function sanitizeSketchValue(value: unknown): RoomSketchValue {
+  if (!isRecord(value)) {
+    return createEmptySketch();
+  }
+
+  const rawOperations = Array.isArray(value.operations) ? value.operations : [];
+  const operations = rawOperations
+    .map((entry) => sanitizeOperation(entry))
+    .filter((entry): entry is Operation => entry !== null);
+
+  return { operations };
+}
+
 export default function MyKitchenPage() {
   const [selections, setSelections] = useState<Record<string, string[]>>(() => createEmptySelections());
+  const [sketch, setSketch] = useState<RoomSketchValue>(() => createEmptySketch());
   const [notes, setNotes] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -247,6 +375,7 @@ export default function MyKitchenPage() {
         const parsed = JSON.parse(stored) as {
           selections?: Record<string, unknown>;
           notes?: unknown;
+          sketch?: unknown;
         };
 
         if (parsed.selections && typeof parsed.selections === 'object') {
@@ -262,6 +391,10 @@ export default function MyKitchenPage() {
         if (typeof parsed.notes === 'string') {
           setNotes(parsed.notes);
         }
+
+        if ('sketch' in parsed) {
+          setSketch(sanitizeSketchValue(parsed.sketch));
+        }
       }
     } catch {
       // ignorujemy uszkodzone dane w pamięci
@@ -275,9 +408,9 @@ export default function MyKitchenPage() {
       return;
     }
 
-    const payload = JSON.stringify({ selections, notes });
+    const payload = JSON.stringify({ selections, notes, sketch });
     window.localStorage.setItem(STORAGE_KEY, payload);
-  }, [selections, notes, isLoaded]);
+  }, [selections, notes, sketch, isLoaded]);
 
   const toggleOption = (category: Category, value: string) => {
     setSelections((prev) => {
@@ -324,9 +457,11 @@ export default function MyKitchenPage() {
 
   const hasSummary = summary.length > 0;
   const hasNotes = notes.trim().length > 0;
+  const hasSketch = sketch.operations.length > 0;
 
   const handleReset = () => {
     setSelections(createEmptySelections());
+    setSketch(createEmptySketch());
     setNotes('');
   };
 
@@ -468,6 +603,8 @@ export default function MyKitchenPage() {
               );
             })}
 
+            <RoomSketchPad value={sketch} onChange={setSketch} />
+
             <section className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -539,11 +676,11 @@ export default function MyKitchenPage() {
               type="button"
               onClick={handleReset}
               className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-              disabled={!hasSummary && !hasNotes}
+              disabled={!hasSummary && !hasNotes && !hasSketch}
             >
-              Wyczyść wybory
+              Resetuj stronę
             </button>
-            {!hasSummary && !hasNotes && (
+            {!hasSummary && !hasNotes && !hasSketch && (
               <p className="text-center text-xs text-slate-400">
                 Zacznij wybierać elementy, aby utworzyć swój plan kuchni.
               </p>
