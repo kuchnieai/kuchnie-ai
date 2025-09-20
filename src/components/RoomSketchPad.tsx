@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 
 export type NormalizedPoint = { x: number; y: number };
 export type DimensionOperation = {
@@ -66,6 +66,8 @@ type FullscreenDocument = Document & {
   webkitExitFullscreen?: () => Promise<void> | void;
   webkitFullscreenElement?: Element | null;
 };
+
+type FullscreenMode = 'none' | 'native' | 'manual';
 
 type Props = {
   value: RoomSketchValue;
@@ -417,14 +419,30 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const pinchStateRef = useRef<PinchState | null>(null);
   const panStateRef = useRef<PanState | null>(null);
   const textPointerRef = useRef<{ pointerId: number; point: NormalizedPoint } | null>(null);
+  const fullscreenFallbackTimeoutRef = useRef<number | null>(null);
 
   const [tool, setTool] = useState<Tool>('freehand');
   const [thickness, setThickness] = useState<number>(THICKNESS_PRESETS[1]);
   const [draft, setDraft] = useState<DraftOperation | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ scale: 1, offsetX: 0, offsetY: 0 });
   const [isPanningActive, setIsPanningActive] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenMode, setFullscreenMode] = useState<FullscreenMode>('none');
+  const isFullscreen = fullscreenMode !== 'none';
   const viewportRef = useRef<ViewportState>(viewport);
+
+  const clearFullscreenFallbackTimeout = useCallback(() => {
+    if (fullscreenFallbackTimeoutRef.current !== null) {
+      if (typeof window !== 'undefined') {
+        window.clearTimeout(fullscreenFallbackTimeoutRef.current);
+      }
+      fullscreenFallbackTimeoutRef.current = null;
+    }
+  }, []);
+
+  const activateManualFullscreen = useCallback(() => {
+    clearFullscreenFallbackTimeout();
+    setFullscreenMode((previous) => (previous === 'manual' ? previous : 'manual'));
+  }, [clearFullscreenFallbackTimeout]);
 
   const updateViewport = useCallback((updater: (previous: ViewportState) => ViewportState) => {
     setViewport((previous) => {
@@ -449,11 +467,27 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   );
 
   const combinedClassName = useMemo(() => {
-    const base = isFullscreen
-      ? 'box-border flex h-full w-full flex-col gap-4 overflow-hidden rounded-none border border-slate-200 bg-white/95 p-4 shadow-none sm:p-6'
-      : '-ml-4 box-border w-[calc(100%_+_2rem)] flex flex-col gap-4 rounded-none border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:box-content sm:ml-0 sm:w-full sm:rounded-3xl sm:p-6';
+    const fullscreenClass =
+      fullscreenMode === 'manual'
+        ? 'fixed inset-0 z-[9999] box-border flex h-[100dvh] w-screen flex-col gap-4 overflow-hidden rounded-none border border-slate-200 bg-white/95 p-4 shadow-none sm:p-6'
+        : 'box-border flex h-full w-full flex-col gap-4 overflow-hidden rounded-none border border-slate-200 bg-white/95 p-4 shadow-none sm:p-6';
+    const defaultClass =
+      '-ml-4 box-border w-[calc(100%_+_2rem)] flex flex-col gap-4 rounded-none border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:box-content sm:ml-0 sm:w-full sm:rounded-3xl sm:p-6';
+    const base = isFullscreen ? fullscreenClass : defaultClass;
     return [base, className ?? ''].filter(Boolean).join(' ');
-  }, [className, isFullscreen]);
+  }, [className, fullscreenMode, isFullscreen]);
+
+  const manualFullscreenStyle = useMemo<CSSProperties | undefined>(() => {
+    if (fullscreenMode !== 'manual') {
+      return undefined;
+    }
+    return {
+      paddingTop: 'env(safe-area-inset-top)',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+      paddingLeft: 'env(safe-area-inset-left)',
+      paddingRight: 'env(safe-area-inset-right)',
+    };
+  }, [fullscreenMode]);
 
   const handleEnterFullscreen = useCallback(() => {
     const element = rootRef.current as FullscreenElement | null;
@@ -467,6 +501,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       element.webkitEnterFullscreen?.bind(element);
 
     if (!requestFullscreen) {
+      activateManualFullscreen();
       return;
     }
 
@@ -474,15 +509,28 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       const result = requestFullscreen();
       if (result && typeof (result as Promise<void>).catch === 'function') {
         (result as Promise<void>).catch(() => {
-          // ignorujemy błędy związane z odmową pełnego ekranu
+          activateManualFullscreen();
         });
       }
+      if (typeof window !== 'undefined') {
+        clearFullscreenFallbackTimeout();
+        fullscreenFallbackTimeoutRef.current = window.setTimeout(() => {
+          activateManualFullscreen();
+        }, 400);
+      }
     } catch {
-      // ignorujemy błędy związane z odmową pełnego ekranu
+      activateManualFullscreen();
     }
-  }, []);
+  }, [activateManualFullscreen, clearFullscreenFallbackTimeout]);
 
   const handleExitFullscreen = useCallback(() => {
+    clearFullscreenFallbackTimeout();
+
+    if (fullscreenMode === 'manual') {
+      setFullscreenMode('none');
+      return;
+    }
+
     if (typeof document === 'undefined') {
       return;
     }
@@ -490,6 +538,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     const doc = document as FullscreenDocument;
     const fullscreenElement = document.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
     if (!fullscreenElement) {
+      setFullscreenMode((previous) => (previous === 'manual' ? previous : 'none'));
       return;
     }
 
@@ -497,6 +546,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       document.exitFullscreen?.bind(document) ?? doc.webkitExitFullscreen?.bind(doc);
 
     if (!exitFullscreen) {
+      setFullscreenMode((previous) => (previous === 'manual' ? previous : 'none'));
       return;
     }
 
@@ -504,13 +554,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       const result = exitFullscreen();
       if (result && typeof (result as Promise<void>).catch === 'function') {
         (result as Promise<void>).catch(() => {
-          // ignorujemy błędy związane z wyjściem z pełnego ekranu
+          setFullscreenMode((previous) => (previous === 'manual' ? previous : 'none'));
         });
       }
     } catch {
-      // ignorujemy błędy związane z wyjściem z pełnego ekranu
+      setFullscreenMode((previous) => (previous === 'manual' ? previous : 'none'));
     }
-  }, []);
+  }, [clearFullscreenFallbackTimeout, fullscreenMode]);
 
   const handleResetViewport = useCallback(() => {
     updateViewport(() => ({ scale: 1, offsetX: 0, offsetY: 0 }));
@@ -586,7 +636,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
     const handleFullscreenChange = () => {
       const fullscreenElement = document.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
-      setIsFullscreen(fullscreenElement === rootRef.current);
+      clearFullscreenFallbackTimeout();
+      if (fullscreenElement === rootRef.current) {
+        setFullscreenMode('native');
+      } else {
+        setFullscreenMode((previous) => (previous === 'manual' ? 'manual' : 'none'));
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -595,7 +650,37 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
     };
-  }, []);
+  }, [clearFullscreenFallbackTimeout]);
+
+  useEffect(
+    () => () => {
+      clearFullscreenFallbackTimeout();
+    },
+    [clearFullscreenFallbackTimeout],
+  );
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return () => {};
+    }
+
+    if (fullscreenMode !== 'manual') {
+      return () => {};
+    }
+
+    const bodyStyle = document.body.style;
+    const htmlStyle = document.documentElement.style;
+    const previousBodyOverflow = bodyStyle.overflow;
+    const previousHtmlOverflow = htmlStyle.overflow;
+
+    bodyStyle.overflow = 'hidden';
+    htmlStyle.overflow = 'hidden';
+
+    return () => {
+      bodyStyle.overflow = previousBodyOverflow;
+      htmlStyle.overflow = previousHtmlOverflow;
+    };
+  }, [fullscreenMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -959,7 +1044,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const canClear = value.operations.length > 0;
 
   return (
-    <div ref={rootRef} className={combinedClassName}>
+    <div ref={rootRef} className={combinedClassName} style={manualFullscreenStyle}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Szkic pomieszczenia</h3>
