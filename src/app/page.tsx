@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { ensureProfile } from '@/lib/profile';
 
@@ -108,7 +108,7 @@ const FEATURE_OPTIONS: FeatureOption[] = [
   ...SIZE_FEATURE_OPTIONS,
 ];
 
-const CUSTOM_PROJECT_URL = '/firmy';
+const CUSTOM_PROJECT_URL = '/moja-kuchnia';
 
 const optionPromptByLabel = (label: string) =>
   FEATURE_OPTIONS.find((opt) => opt.label === label)?.promptText;
@@ -152,10 +152,10 @@ export default function Home() {
     });
   };
 
-  const syncOptionsFromPrompt = (value: string) => {
+  const syncOptionsFromPrompt = useCallback((value: string) => {
     const matched = extractOptionLabelsFromPrompt(value);
     setOptions(matched);
-  };
+  }, []);
 
   const toggleOption = (opt: string) => {
     setOptions((prev) => {
@@ -235,8 +235,7 @@ export default function Home() {
         syncOptionsFromPrompt(savedPrompt);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [syncOptionsFromPrompt]);
 
   // --- textarea autogrow ---
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -337,12 +336,12 @@ export default function Home() {
     }
   }, [projects]);
 
-  const showPrev = () => {
-    setFullscreenIndex(i => (i === null ? i : (i - 1 + projects.length) % projects.length));
-  };
-  const showNext = () => {
-    setFullscreenIndex(i => (i === null ? i : (i + 1) % projects.length));
-  };
+  const showPrev = useCallback(() => {
+    setFullscreenIndex((i) => (i === null ? i : (i - 1 + projects.length) % projects.length));
+  }, [projects.length]);
+  const showNext = useCallback(() => {
+    setFullscreenIndex((i) => (i === null ? i : (i + 1) % projects.length));
+  }, [projects.length]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -559,7 +558,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [fullscreenIndex, projects.length]);
+  }, [fullscreenIndex, projects.length, showNext, showPrev]);
 
   // --- GENEROWANIE + ZAPIS ---
   const handleGenerate = async ({ focusTextarea = true }: { focusTextarea?: boolean } = {}) => {
@@ -696,7 +695,7 @@ export default function Home() {
   // --- ZAPIS DO GALERII ---
   const openCustomProjectPage = () => {
     if (typeof window !== 'undefined') {
-      window.open(CUSTOM_PROJECT_URL, '_blank');
+      window.location.assign(CUSTOM_PROJECT_URL);
     }
   };
 
