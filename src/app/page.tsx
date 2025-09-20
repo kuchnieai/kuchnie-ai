@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { ensureProfile } from '@/lib/profile';
@@ -1080,6 +1081,17 @@ export default function Home() {
                   Użyj promptu
                 </button>
               )}
+              <Link
+                href="/firmy"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFullscreenIndex(null);
+                }}
+                className="rounded-md px-3 py-1 text-sm font-medium text-white bg-blue-600/90 border border-white/50 transition hover:bg-blue-600"
+                title="Znajdź firmę"
+              >
+                Znajdź firmę
+              </Link>
               <button
                 type="button"
                 onClick={(e) => {
