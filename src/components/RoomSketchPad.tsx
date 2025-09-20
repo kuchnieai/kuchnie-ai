@@ -25,7 +25,27 @@ type DraftOperation =
   | { type: 'line'; thickness: number; start: NormalizedPoint; end: NormalizedPoint }
   | { type: 'dimension'; label: number; start: NormalizedPoint; end: NormalizedPoint };
 
-type Tool = 'freehand' | 'line' | 'text' | 'dimension';
+type Tool = 'freehand' | 'line' | 'text' | 'dimension' | 'pan';
+
+type ViewportState = {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+type PinchState = {
+  initialDistance: number;
+  initialScale: number;
+  worldMidpoint: { x: number; y: number };
+};
+
+type PanState = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  initialOffsetX: number;
+  initialOffsetY: number;
+};
 
 type CanvasMetrics = {
   width: number;
@@ -64,8 +84,28 @@ const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: stri
     description: 'Dodaj linie pomocnicze z numeracją.',
     icon: '📏',
   },
+  { value: 'pan', label: 'Łapka', description: 'Przesuwaj widok szkicu.', icon: '🤚' },
   { value: 'text', label: 'Tekst', description: 'Dodaj podpisy lub wymiary.', icon: '🔤' },
 ];
+
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 4;
+const GRID_SPACING = 24;
+
+function sanitizeOffset(value: number): number {
+  if (Number.isNaN(value) || !Number.isFinite(value)) {
+    return 0;
+  }
+  return value;
+}
+
+function normalizeViewport(viewport: ViewportState): ViewportState {
+  return {
+    scale: clampScale(viewport.scale),
+    offsetX: sanitizeOffset(viewport.offsetX),
+    offsetY: sanitizeOffset(viewport.offsetY),
+  };
+}
 
 function clampNormalized(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
@@ -76,6 +116,19 @@ function clampNormalized(value: number): number {
   }
   if (value > 1) {
     return 1;
+  }
+  return value;
+}
+
+function clampScale(value: number): number {
+  if (Number.isNaN(value) || !Number.isFinite(value)) {
+    return 1;
+  }
+  if (value < MIN_SCALE) {
+    return MIN_SCALE;
+  }
+  if (value > MAX_SCALE) {
+    return MAX_SCALE;
   }
   return value;
 }
@@ -214,11 +267,40 @@ function drawOperation(
   ctx.restore();
 }
 
+function drawGrid(ctx: CanvasRenderingContext2D, metrics: CanvasMetrics, viewport: ViewportState): void {
+  const { offsetX, offsetY, scale } = viewport;
+  const visibleStartX = (-offsetX) / scale;
+  const visibleEndX = (metrics.width - offsetX) / scale;
+  const visibleStartY = (-offsetY) / scale;
+  const visibleEndY = (metrics.height - offsetY) / scale;
+
+  const startX = Math.floor(visibleStartX / GRID_SPACING) * GRID_SPACING - GRID_SPACING;
+  const endX = Math.ceil(visibleEndX / GRID_SPACING) * GRID_SPACING + GRID_SPACING;
+  const startY = Math.floor(visibleStartY / GRID_SPACING) * GRID_SPACING - GRID_SPACING;
+  const endY = Math.ceil(visibleEndY / GRID_SPACING) * GRID_SPACING + GRID_SPACING;
+
+  ctx.save();
+  ctx.lineWidth = 1 / scale;
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+  ctx.beginPath();
+  for (let x = startX; x <= endX; x += GRID_SPACING) {
+    ctx.moveTo(x, startY);
+    ctx.lineTo(x, endY);
+  }
+  for (let y = startY; y <= endY; y += GRID_SPACING) {
+    ctx.moveTo(startX, y);
+    ctx.lineTo(endX, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawAll(
   ctx: CanvasRenderingContext2D,
   metrics: CanvasMetrics,
   operations: Operation[],
   draft: DraftOperation | null,
+  viewport: ViewportState,
 ): void {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -227,6 +309,9 @@ function drawAll(
 
   ctx.save();
   ctx.scale(metrics.dpr, metrics.dpr);
+  ctx.translate(viewport.offsetX, viewport.offsetY);
+  ctx.scale(viewport.scale, viewport.scale);
+  drawGrid(ctx, metrics, viewport);
   operations.forEach((operation) => {
     drawOperation(ctx, metrics, operation);
   });
@@ -301,25 +386,55 @@ function convertDraftToOperation(draft: DraftOperation, operations: Operation[])
   };
 }
 
-function getNormalizedPoint(clientX: number, clientY: number, rect: DOMRect): NormalizedPoint {
+function getNormalizedPoint(
+  clientX: number,
+  clientY: number,
+  rect: DOMRect,
+  viewport: ViewportState,
+): NormalizedPoint {
   const width = rect.width > 0 ? rect.width : 1;
   const height = rect.height > 0 ? rect.height : 1;
-  const x = clampNormalized((clientX - rect.left) / width);
-  const y = clampNormalized((clientY - rect.top) / height);
+  const localX = (clientX - rect.left - viewport.offsetX) / viewport.scale;
+  const localY = (clientY - rect.top - viewport.offsetY) / viewport.scale;
+  const x = clampNormalized(localX / width);
+  const y = clampNormalized(localY / height);
   return { x, y };
 }
 
 export default function RoomSketchPad({ value, onChange, className }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const metricsRef = useRef<CanvasMetrics | null>(null);
   const operationsRef = useRef<Operation[]>(value.operations);
   const draftRef = useRef<DraftOperation | null>(null);
   const pointerIdRef = useRef<number | null>(null);
+  const pointerPositionsRef = useRef<Map<number, { clientX: number; clientY: number }>>(new Map());
+  const pinchStateRef = useRef<PinchState | null>(null);
+  const panStateRef = useRef<PanState | null>(null);
+  const textPointerRef = useRef<{ pointerId: number; point: NormalizedPoint } | null>(null);
 
   const [tool, setTool] = useState<Tool>('freehand');
   const [thickness, setThickness] = useState<number>(THICKNESS_PRESETS[1]);
   const [draft, setDraft] = useState<DraftOperation | null>(null);
+  const [viewport, setViewport] = useState<ViewportState>({ scale: 1, offsetX: 0, offsetY: 0 });
+  const [isPanningActive, setIsPanningActive] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const viewportRef = useRef<ViewportState>(viewport);
+
+  const updateViewport = useCallback((updater: (previous: ViewportState) => ViewportState) => {
+    setViewport((previous) => {
+      const next = normalizeViewport(updater(previous));
+      if (
+        Math.abs(previous.scale - next.scale) < 0.001 &&
+        Math.abs(previous.offsetX - next.offsetX) < 0.5 &&
+        Math.abs(previous.offsetY - next.offsetY) < 0.5
+      ) {
+        return previous;
+      }
+      return next;
+    });
+  }, []);
   const dimensionOperations = useMemo(
     () =>
       value.operations
@@ -329,16 +444,63 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     [value.operations],
   );
 
-  const combinedClassName = useMemo(
+  const combinedClassName = useMemo(() => {
+    const base = isFullscreen
+      ? 'box-border flex h-full w-full flex-col gap-4 overflow-hidden rounded-none border border-slate-200 bg-white/95 p-4 shadow-none sm:p-6'
+      : '-ml-4 box-border w-[calc(100%_+_2rem)] flex flex-col gap-4 rounded-none border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:box-content sm:ml-0 sm:w-full sm:rounded-3xl sm:p-6';
+    return [base, className ?? ''].filter(Boolean).join(' ');
+  }, [className, isFullscreen]);
+
+  const handleEnterFullscreen = useCallback(() => {
+    const element = rootRef.current;
+    if (element && element.requestFullscreen) {
+      element
+        .requestFullscreen()
+        .then(() => {
+          // noop
+        })
+        .catch(() => {
+          // ignorujemy błędy związane z odmową pełnego ekranu
+        });
+    }
+  }, []);
+
+  const handleExitFullscreen = useCallback(() => {
+    if (typeof document !== 'undefined' && document.fullscreenElement) {
+      document
+        .exitFullscreen()
+        .then(() => {
+          // noop
+        })
+        .catch(() => {
+          // ignorujemy błędy związane z wyjściem z pełnego ekranu
+        });
+    }
+  }, []);
+
+  const handleResetViewport = useCallback(() => {
+    updateViewport(() => ({ scale: 1, offsetX: 0, offsetY: 0 }));
+  }, [updateViewport]);
+
+  const isViewportDefault = useMemo(
     () =>
-      [
-        '-ml-4 box-border w-[calc(100%_+_2rem)] flex flex-col gap-4 rounded-none border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:box-content sm:ml-0 sm:w-full sm:rounded-3xl sm:p-6',
-        className ?? '',
-      ]
-        .filter(Boolean)
-        .join(' '),
-    [className],
+      Math.abs(viewport.scale - 1) < 0.001 &&
+      Math.abs(viewport.offsetX) < 0.5 &&
+      Math.abs(viewport.offsetY) < 0.5,
+    [viewport],
   );
+
+  const zoomPercentage = useMemo(() => Math.round(viewport.scale * 100), [viewport.scale]);
+
+  const canvasCursor = useMemo(() => {
+    if (tool === 'text') {
+      return 'text';
+    }
+    if (tool === 'pan') {
+      return isPanningActive ? 'grabbing' : 'grab';
+    }
+    return 'crosshair';
+  }, [isPanningActive, tool]);
 
   const handleDimensionMeasurementChange = useCallback(
     (id: string, measurement: string) => {
@@ -363,7 +525,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     if (!context) {
       return;
     }
-    drawAll(context, metrics, operationsRef.current, draftRef.current);
+    drawAll(context, metrics, operationsRef.current, draftRef.current, viewportRef.current);
   }, []);
 
   useEffect(() => {
@@ -375,6 +537,26 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     draftRef.current = draft;
     redraw();
   }, [draft, redraw]);
+
+  useEffect(() => {
+    viewportRef.current = viewport;
+    redraw();
+  }, [viewport, redraw]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return () => {};
+    }
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === rootRef.current);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -424,41 +606,136 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     onChange({ operations: [...operationsRef.current, operation] });
   }, [onChange]);
 
+  const beginPinch = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const pointers = Array.from(pointerPositionsRef.current.values());
+    if (pointers.length < 2) {
+      return;
+    }
+    const [first, second] = pointers;
+    const dx = second.clientX - first.clientX;
+    const dy = second.clientY - first.clientY;
+    const distance = Math.hypot(dx, dy);
+    if (!Number.isFinite(distance) || distance === 0) {
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    const midpointX = (first.clientX + second.clientX) / 2 - rect.left;
+    const midpointY = (first.clientY + second.clientY) / 2 - rect.top;
+    const currentViewport = viewportRef.current;
+    const worldMidpoint = {
+      x: (midpointX - currentViewport.offsetX) / currentViewport.scale,
+      y: (midpointY - currentViewport.offsetY) / currentViewport.scale,
+    };
+
+    pinchStateRef.current = {
+      initialDistance: distance,
+      initialScale: currentViewport.scale,
+      worldMidpoint,
+    };
+    pointerIdRef.current = null;
+    setDraft(null);
+    if (panStateRef.current) {
+      panStateRef.current = null;
+      setIsPanningActive(false);
+    }
+    textPointerRef.current = null;
+  }, [setDraft, setIsPanningActive]);
+
+  const updatePinch = useCallback(() => {
+    const pinchState = pinchStateRef.current;
+    const container = containerRef.current;
+    if (!pinchState || !container) {
+      return;
+    }
+    const pointers = Array.from(pointerPositionsRef.current.values());
+    if (pointers.length < 2) {
+      return;
+    }
+    const [first, second] = pointers;
+    const dx = second.clientX - first.clientX;
+    const dy = second.clientY - first.clientY;
+    const distance = Math.hypot(dx, dy);
+    if (!Number.isFinite(distance) || distance === 0) {
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const midpointX = (first.clientX + second.clientX) / 2 - rect.left;
+    const midpointY = (first.clientY + second.clientY) / 2 - rect.top;
+    const nextScale = clampScale((distance / pinchState.initialDistance) * pinchState.initialScale);
+
+    updateViewport(() => ({
+      scale: nextScale,
+      offsetX: midpointX - pinchState.worldMidpoint.x * nextScale,
+      offsetY: midpointY - pinchState.worldMidpoint.y * nextScale,
+    }));
+  }, [updateViewport]);
+
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
-      if (event.button !== 0 && event.pointerType === 'mouse') {
+      if (event.pointerType === 'mouse' && event.button !== 0) {
         return;
       }
 
       const canvas = canvasRef.current;
-      const metrics = metricsRef.current;
-      if (!canvas || !metrics) {
+      if (!canvas) {
+        return;
+      }
+
+      pointerPositionsRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+
+      if (event.pointerType === 'touch' && pointerPositionsRef.current.size >= 2) {
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch {
+          // ignorujemy
+        }
+        beginPinch();
         return;
       }
 
       const rect = canvas.getBoundingClientRect();
-      const point = getNormalizedPoint(event.clientX, event.clientY, rect);
 
       if (tool === 'text') {
-        const userInput = window.prompt('Wpisz treść etykiety:', '');
-        const text = userInput ? userInput.trim() : '';
-        if (text.length === 0) {
-          return;
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch {
+          // ignorujemy
         }
+        const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
+        textPointerRef.current = { pointerId: event.pointerId, point };
+        return;
+      }
 
-        const operation: Operation = {
-          id: createOperationId(),
-          type: 'text',
-          position: point,
-          text,
-          size: thicknessToFontSize(thickness),
+      if (tool === 'pan') {
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch {
+          // ignorujemy
+        }
+        panStateRef.current = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          initialOffsetX: viewportRef.current.offsetX,
+          initialOffsetY: viewportRef.current.offsetY,
         };
-        onChange({ operations: [...operationsRef.current, operation] });
+        setIsPanningActive(true);
         return;
       }
 
       pointerIdRef.current = event.pointerId;
-      canvas.setPointerCapture(event.pointerId);
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch {
+        // ignorujemy
+      }
+
+      const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
 
       if (tool === 'freehand') {
         setDraft({ type: 'freehand', thickness, points: [point] });
@@ -473,79 +750,155 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       setDraft({ type: 'line', thickness, start: point, end: point });
     },
-    [onChange, thickness, tool],
+    [beginPinch, setIsPanningActive, thickness, tool],
   );
 
-  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (pointerIdRef.current !== event.pointerId) {
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const metrics = metricsRef.current;
-    if (!canvas || !metrics) {
-      return;
-    }
-
-    event.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const point = getNormalizedPoint(event.clientX, event.clientY, rect);
-
-    setDraft((previous) => {
-      if (!previous) {
-        return previous;
-      }
-
-      if (previous.type === 'freehand') {
-        return { ...previous, points: [...previous.points, point] };
-      }
-
-      if (previous.type === 'dimension') {
-        return { ...previous, end: point };
-      }
-
-      return { ...previous, end: point };
-    });
-  }, []);
-
-  const handlePointerUp = useCallback(
+  const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        return;
+      }
+
+      pointerPositionsRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+
+      if (pinchStateRef.current) {
+        event.preventDefault();
+        updatePinch();
+        return;
+      }
+
+      if (textPointerRef.current?.pointerId === event.pointerId) {
+        const rect = canvas.getBoundingClientRect();
+        const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
+        textPointerRef.current = { pointerId: event.pointerId, point };
+        return;
+      }
+
+      const currentPan = panStateRef.current;
+      if (currentPan && currentPan.pointerId === event.pointerId) {
+        event.preventDefault();
+        const deltaX = event.clientX - currentPan.startX;
+        const deltaY = event.clientY - currentPan.startY;
+        updateViewport((previous) => ({
+          scale: previous.scale,
+          offsetX: currentPan.initialOffsetX + deltaX,
+          offsetY: currentPan.initialOffsetY + deltaY,
+        }));
+        return;
+      }
+
       if (pointerIdRef.current !== event.pointerId) {
         return;
       }
+
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
+
+      setDraft((previous) => {
+        if (!previous) {
+          return previous;
+        }
+
+        if (previous.type === 'freehand') {
+          return { ...previous, points: [...previous.points, point] };
+        }
+
+        if (previous.type === 'dimension') {
+          return { ...previous, end: point };
+        }
+
+        return { ...previous, end: point };
+      });
+    },
+    [updatePinch, updateViewport],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      pointerPositionsRef.current.delete(event.pointerId);
 
       const canvas = canvasRef.current;
       if (canvas) {
         try {
           canvas.releasePointerCapture(event.pointerId);
         } catch {
-          // Safari może rzucić błąd, gdy pointer capture nie jest aktywny.
+          // ignorujemy
         }
+      }
+
+      if (pinchStateRef.current && pointerPositionsRef.current.size < 2) {
+        pinchStateRef.current = null;
+      }
+
+      if (textPointerRef.current && textPointerRef.current.pointerId === event.pointerId) {
+        const placement = textPointerRef.current;
+        textPointerRef.current = null;
+        const userInput = window.prompt('Wpisz treść etykiety:', '');
+        const text = userInput ? userInput.trim() : '';
+        if (text.length > 0) {
+          const operation: Operation = {
+            id: createOperationId(),
+            type: 'text',
+            position: placement.point,
+            text,
+            size: thicknessToFontSize(thickness),
+          };
+          onChange({ operations: [...operationsRef.current, operation] });
+        }
+        return;
+      }
+
+      if (panStateRef.current && panStateRef.current.pointerId === event.pointerId) {
+        panStateRef.current = null;
+        setIsPanningActive(false);
+        return;
+      }
+
+      if (pointerIdRef.current !== event.pointerId) {
+        return;
       }
 
       pointerIdRef.current = null;
       commitDraft();
     },
-    [commitDraft],
+    [commitDraft, onChange, setIsPanningActive, thickness],
   );
 
-  const handlePointerCancel = useCallback((event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (pointerIdRef.current !== event.pointerId) {
-      return;
-    }
+  const handlePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      pointerPositionsRef.current.delete(event.pointerId);
 
-    pointerIdRef.current = null;
-    setDraft(null);
-
-    const canvas = canvasRef.current;
-    if (canvas) {
-      try {
-        canvas.releasePointerCapture(event.pointerId);
-      } catch {
-        // ignorujemy
+      const canvas = canvasRef.current;
+      if (canvas) {
+        try {
+          canvas.releasePointerCapture(event.pointerId);
+        } catch {
+          // ignorujemy
+        }
       }
-    }
-  }, []);
+
+      if (pinchStateRef.current && pointerPositionsRef.current.size < 2) {
+        pinchStateRef.current = null;
+      }
+
+      if (textPointerRef.current && textPointerRef.current.pointerId === event.pointerId) {
+        textPointerRef.current = null;
+      }
+
+      if (panStateRef.current && panStateRef.current.pointerId === event.pointerId) {
+        panStateRef.current = null;
+        setIsPanningActive(false);
+      }
+
+      if (pointerIdRef.current === event.pointerId) {
+        pointerIdRef.current = null;
+        setDraft(null);
+      }
+    },
+    [setIsPanningActive],
+  );
 
   const handleUndo = useCallback(() => {
     if (operationsRef.current.length === 0) {
@@ -567,7 +920,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const canClear = value.operations.length > 0;
 
   return (
-    <div className={combinedClassName}>
+    <div ref={rootRef} className={combinedClassName}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Szkic pomieszczenia</h3>
@@ -609,7 +962,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               type="button"
               onClick={() => setThickness(preset)}
               aria-pressed={isActive}
-              disabled={tool === 'dimension'}
+              disabled={tool === 'dimension' || tool === 'pan'}
               className={`rounded-full border px-3 py-1 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-60 ${
                 isActive
                   ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
@@ -622,19 +975,48 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         })}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={isFullscreen ? handleExitFullscreen : handleEnterFullscreen}
+          aria-pressed={isFullscreen}
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+            isFullscreen
+              ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+          }`}
+        >
+          {isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}
+        </button>
+        <button
+          type="button"
+          onClick={handleResetViewport}
+          disabled={isViewportDefault}
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+            isViewportDefault
+              ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+              : 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+          }`}
+        >
+          Wyśrodkuj
+        </button>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Zoom: {zoomPercentage}%
+        </span>
+      </div>
+
       <div
         ref={containerRef}
-        className="relative min-h-[280px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white max-h-[min(100vh,640px)] sm:min-h-[320px] sm:max-h-none"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, rgba(148, 163, 184, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.2) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
+        className={`relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-white ${
+          isFullscreen
+            ? 'flex-1 min-h-0'
+            : 'min-h-[280px] max-h-[min(100vh,640px)] sm:min-h-[320px] sm:max-h-none'
+        }`}
       >
         <canvas
           ref={canvasRef}
           className="block h-full w-full"
-          style={{ touchAction: 'none', cursor: tool === 'text' ? 'text' : 'crosshair' }}
+          style={{ touchAction: 'none', cursor: canvasCursor }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -693,7 +1075,9 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             ? 'Kliknij na kratkę, aby dodać tekst.'
             : tool === 'dimension'
               ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
-              : 'Przeciągnij po kratce, aby narysować element.'}
+              : tool === 'pan'
+                ? 'Przeciągnij, aby przesunąć widok. Przybliżaj dwoma palcami, aby zmienić powiększenie.'
+                : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
