@@ -317,10 +317,10 @@ export default function MyKitchenPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-white">
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-white">
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
         <header className="max-w-3xl">
-          <span className="inline-flex items-center rounded-full bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-orange-500 shadow-sm ring-1 ring-orange-100">
+          <span className="inline-flex items-center rounded-full bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-600 shadow-sm ring-1 ring-blue-200">
             Moja kuchnia
           </span>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
@@ -348,7 +348,7 @@ export default function MyKitchenPage() {
                     <h2 className="text-xl font-semibold text-slate-900">{category.title}</h2>
                     <p className="mt-2 text-sm text-slate-600">{category.description}</p>
                   </div>
-                  <span className="inline-flex items-center justify-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-600 ring-1 ring-orange-200">
+                  <span className="inline-flex items-center justify-center rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600 ring-1 ring-blue-200">
                     {category.type === 'single' ? 'Wybierz jedną opcję' : 'Możesz wybrać wiele opcji'}
                   </span>
                 </div>
@@ -362,13 +362,13 @@ export default function MyKitchenPage() {
                         key={option.value}
                         type="button"
                         onClick={() => toggleOption(category, option.value)}
-                        className={`group relative flex items-start gap-4 rounded-2xl border bg-white/80 p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
+                        className={`group relative flex items-start gap-4 rounded-2xl border bg-white/80 p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                           isSelected
-                            ? 'border-orange-300 shadow-[0_20px_45px_-28px_rgba(249,115,22,0.55)]'
-                            : 'border-slate-200 hover:border-orange-200 hover:shadow-sm'
+                            ? 'border-blue-300 shadow-[0_20px_45px_-28px_rgba(59,130,246,0.45)]'
+                            : 'border-slate-200 hover:border-blue-200 hover:shadow-sm'
                         }`}
                       >
-                        <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-lg">
+                        <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-lg">
                           {option.swatch ? (
                             <span
                               aria-hidden
@@ -386,7 +386,7 @@ export default function MyKitchenPage() {
                           )}
                         </div>
                         {isSelected && (
-                          <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-600">
+                          <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-600">
                             <span aria-hidden>✓</span> Wybrane
                           </span>
                         )}
@@ -413,12 +413,12 @@ export default function MyKitchenPage() {
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 placeholder="Np. blat z konglomeratu kwarcowego, uchwyty w kolorze szczotkowanego złota, płytki metro na ścianie..."
-                className="mt-4 min-h-[180px] w-full resize-y rounded-2xl border border-slate-200 bg-white/90 p-4 text-base text-slate-700 shadow-inner transition focus:border-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                className="mt-4 min-h-[180px] w-full resize-y rounded-2xl border border-slate-200 bg-white/90 p-4 text-base text-slate-700 shadow-inner transition focus:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </section>
           </div>
 
-          <aside className="space-y-6 rounded-3xl border border-orange-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm lg:sticky lg:top-24">
+          <aside className="space-y-6 rounded-3xl border border-blue-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm lg:sticky lg:top-24">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">Twoja kuchnia marzeń</h2>
               <p className="mt-2 text-sm text-slate-600">
@@ -429,8 +429,8 @@ export default function MyKitchenPage() {
             <div className="space-y-5">
               {hasSummary ? (
                 summary.map((entry) => (
-                  <div key={entry.title} className="rounded-2xl bg-orange-50/60 p-4">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-orange-600">
+                  <div key={entry.title} className="rounded-2xl bg-blue-50/60 p-4">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
                       {entry.title}
                     </p>
                     <ul className="mt-3 space-y-2 text-sm text-slate-700">
@@ -439,7 +439,7 @@ export default function MyKitchenPage() {
                         const option = category?.options.find((opt) => opt.value === item);
                         return (
                           <li key={item} className="flex items-start gap-2">
-                            <span aria-hidden className="mt-1 text-orange-500">
+                            <span aria-hidden className="mt-1 text-blue-500">
                               •
                             </span>
                             <span>{option?.label ?? item}</span>
@@ -458,8 +458,8 @@ export default function MyKitchenPage() {
             </div>
 
             {hasNotes && (
-              <div className="rounded-2xl border border-orange-100 bg-orange-50/80 p-4 text-sm text-slate-700">
-                <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">Notatki</p>
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm text-slate-700">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Notatki</p>
                 <p className="mt-2 whitespace-pre-wrap leading-relaxed">{notes}</p>
               </div>
             )}
@@ -467,7 +467,7 @@ export default function MyKitchenPage() {
             <button
               type="button"
               onClick={handleReset}
-              className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-orange-200 hover:text-orange-600"
+              className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:text-blue-600"
               disabled={!hasSummary && !hasNotes}
             >
               Wyczyść wybory
