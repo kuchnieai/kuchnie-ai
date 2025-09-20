@@ -299,6 +299,20 @@ export default function MyKitchenPage() {
     });
   };
 
+  const selectAllOptions = (category: Category) => {
+    setSelections((prev) => ({
+      ...prev,
+      [category.id]: category.options.map((option) => option.value),
+    }));
+  };
+
+  const clearCategory = (category: Category) => {
+    setSelections((prev) => ({
+      ...prev,
+      [category.id]: [],
+    }));
+  };
+
   const summary = useMemo(
     () =>
       CATEGORIES.map((category) => ({
@@ -317,10 +331,10 @@ export default function MyKitchenPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-white">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-white">
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
         <header className="max-w-3xl">
-          <span className="inline-flex items-center rounded-full bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-600 shadow-sm ring-1 ring-blue-200">
+          <span className="inline-flex items-center rounded-full bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 shadow-sm ring-1 ring-slate-200">
             Moja kuchnia
           </span>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
@@ -338,66 +352,123 @@ export default function MyKitchenPage() {
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[2fr,1fr] lg:items-start">
           <div className="space-y-8">
-            {CATEGORIES.map((category) => (
-              <section
-                key={category.id}
-                className="rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm backdrop-blur-sm transition"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-900">{category.title}</h2>
-                    <p className="mt-2 text-sm text-slate-600">{category.description}</p>
-                  </div>
-                  <span className="inline-flex items-center justify-center rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600 ring-1 ring-blue-200">
-                    {category.type === 'single' ? 'Wybierz jedną opcję' : 'Możesz wybrać wiele opcji'}
-                  </span>
-                </div>
+            {CATEGORIES.map((category) => {
+              const selectedValues = selections[category.id] ?? [];
+              const allValues = category.options.map((option) => option.value);
+              const isMulti = category.type === 'multi';
+              const everySelected = isMulti && allValues.every((value) => selectedValues.includes(value));
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  {category.options.map((option) => {
-                    const isSelected = (selections[category.id] ?? []).includes(option.value);
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => toggleOption(category, option.value)}
-                        className={`group relative flex items-start gap-4 rounded-2xl border bg-white/80 p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                          isSelected
-                            ? 'border-blue-300 shadow-[0_20px_45px_-28px_rgba(59,130,246,0.45)]'
-                            : 'border-slate-200 hover:border-blue-200 hover:shadow-sm'
-                        }`}
-                      >
-                        <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-lg">
-                          {option.swatch ? (
-                            <span
-                              aria-hidden
-                              className="h-10 w-10 rounded-xl border border-white shadow-inner"
-                              style={{ background: option.swatch }}
-                            />
-                          ) : (
-                            <span aria-hidden>{option.icon ?? '✨'}</span>
-                          )}
-                        </span>
-                        <div className="space-y-1">
-                          <p className="text-base font-semibold text-slate-900">{option.label}</p>
-                          {option.description && (
-                            <p className="text-sm leading-relaxed text-slate-600">{option.description}</p>
-                          )}
+              return (
+                <section
+                  key={category.id}
+                  className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur-sm transition hover:shadow-md"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-2">
+                      <h2 className="text-xl font-semibold text-slate-900">{category.title}</h2>
+                      <p className="text-sm leading-relaxed text-slate-600">{category.description}</p>
+                    </div>
+                    <div className="flex flex-col items-start gap-2 sm:items-end">
+                      <span className="inline-flex items-center rounded-full bg-slate-100/80 px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+                        {category.type === 'single' ? 'Wybierz jedną opcję' : 'Możesz wybrać wiele opcji'}
+                      </span>
+                      {isMulti && (
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => selectAllOptions(category)}
+                            className="rounded-full border border-transparent bg-slate-100 px-3 py-1 font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={everySelected}
+                          >
+                            Zaznacz wszystkie
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => clearCategory(category)}
+                            className="rounded-full border border-transparent px-3 py-1 font-medium text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={selectedValues.length === 0}
+                          >
+                            Wyczyść
+                          </button>
                         </div>
-                        {isSelected && (
-                          <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-600">
-                            <span aria-hidden>✓</span> Wybrane
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+                      )}
+                    </div>
+                  </div>
 
-            <section className="rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {category.options.map((option) => {
+                      const isSelected = selectedValues.includes(option.value);
+                      const optionLabel = option.description
+                        ? `${option.label} – ${option.description}`
+                        : option.label;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-pressed={isSelected}
+                          aria-label={optionLabel}
+                          title={option.description}
+                          onClick={() => toggleOption(category, option.value)}
+                          className={`group relative flex min-w-[160px] items-center gap-3 rounded-full border px-4 py-2 text-left text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 sm:min-w-[200px] ${
+                            isSelected
+                              ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_12px_30px_-16px_rgba(14,116,144,0.45)]'
+                              : 'border-slate-200 bg-white/90 text-slate-600 hover:border-sky-200 hover:bg-sky-50/80 hover:text-slate-700'
+                          }`}
+                        >
+                          {option.swatch ? (
+                            <span className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                              <span
+                                aria-hidden
+                                className="h-8 w-8 rounded-full border border-white/70 shadow-inner"
+                                style={{ background: option.swatch }}
+                              />
+                            </span>
+                          ) : (
+                            <span aria-hidden className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-base">
+                              {option.icon ?? '✨'}
+                            </span>
+                          )}
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate text-sm font-semibold text-slate-900">{option.label}</span>
+                            {option.description && (
+                              <span className="text-xs font-normal text-slate-500">
+                                {option.description}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-5 space-y-2 text-xs text-slate-500">
+                    {selectedValues.length > 0 ? (
+                      selectedValues.map((value) => {
+                        const option = category.options.find((opt) => opt.value === value);
+                        if (!option) {
+                          return null;
+                        }
+
+                        return (
+                          <p key={value} className="flex items-start gap-2">
+                            <span className="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-sky-400" aria-hidden />
+                            <span>
+                              <span className="font-semibold text-slate-600">{option.label}:</span>{' '}
+                              {option.description ?? 'Dodano do planu.'}
+                            </span>
+                          </p>
+                        );
+                      })
+                    ) : (
+                      <p className="italic text-slate-400">Wybierz elementy, które pasują do Twojej kuchni.</p>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+
+            <section className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">Notatki i inspiracje</h2>
@@ -413,12 +484,12 @@ export default function MyKitchenPage() {
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 placeholder="Np. blat z konglomeratu kwarcowego, uchwyty w kolorze szczotkowanego złota, płytki metro na ścianie..."
-                className="mt-4 min-h-[180px] w-full resize-y rounded-2xl border border-slate-200 bg-white/90 p-4 text-base text-slate-700 shadow-inner transition focus:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="mt-4 min-h-[180px] w-full resize-y rounded-2xl border border-slate-200 bg-white/90 p-4 text-base text-slate-700 shadow-inner transition focus:border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-100"
               />
             </section>
           </div>
 
-          <aside className="space-y-6 rounded-3xl border border-blue-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm lg:sticky lg:top-24">
+          <aside className="space-y-6 rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-lg backdrop-blur-sm lg:sticky lg:top-24">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">Twoja kuchnia marzeń</h2>
               <p className="mt-2 text-sm text-slate-600">
@@ -429,8 +500,8 @@ export default function MyKitchenPage() {
             <div className="space-y-5">
               {hasSummary ? (
                 summary.map((entry) => (
-                  <div key={entry.title} className="rounded-2xl bg-blue-50/60 p-4">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                  <div key={entry.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                       {entry.title}
                     </p>
                     <ul className="mt-3 space-y-2 text-sm text-slate-700">
@@ -439,7 +510,7 @@ export default function MyKitchenPage() {
                         const option = category?.options.find((opt) => opt.value === item);
                         return (
                           <li key={item} className="flex items-start gap-2">
-                            <span aria-hidden className="mt-1 text-blue-500">
+                            <span aria-hidden className="mt-1 text-slate-400">
                               •
                             </span>
                             <span>{option?.label ?? item}</span>
@@ -458,8 +529,8 @@ export default function MyKitchenPage() {
             </div>
 
             {hasNotes && (
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm text-slate-700">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Notatki</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-700">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Notatki</p>
                 <p className="mt-2 whitespace-pre-wrap leading-relaxed">{notes}</p>
               </div>
             )}
@@ -467,7 +538,7 @@ export default function MyKitchenPage() {
             <button
               type="button"
               onClick={handleReset}
-              className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:text-blue-600"
+              className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               disabled={!hasSummary && !hasNotes}
             >
               Wyczyść wybory
