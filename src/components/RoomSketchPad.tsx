@@ -72,8 +72,11 @@ function createOperationId(): string {
 
 function getCanvasMetrics(canvas: HTMLCanvasElement, container: HTMLElement): CanvasMetrics {
   const rect = container.getBoundingClientRect();
-  const width = rect.width > 0 ? rect.width : 1;
-  const height = rect.height > 0 ? rect.height : 1;
+  const innerWidth = container.clientWidth;
+  const innerHeight = container.clientHeight;
+
+  const width = innerWidth > 0 ? innerWidth : rect.width > 0 ? rect.width : 1;
+  const height = innerHeight > 0 ? innerHeight : rect.height > 0 ? rect.height : 1;
   const dpr = typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1;
   const pixelWidth = Math.max(Math.round(width * dpr), 1);
   const pixelHeight = Math.max(Math.round(height * dpr), 1);
@@ -85,8 +88,8 @@ function getCanvasMetrics(canvas: HTMLCanvasElement, container: HTMLElement): Ca
     canvas.height = pixelHeight;
   }
 
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
 
   return { width, height, pixelWidth, pixelHeight, dpr };
 }
