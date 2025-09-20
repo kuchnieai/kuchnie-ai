@@ -1054,20 +1054,7 @@ export default function Home() {
               </div>
             )}
             <div className="flex flex-wrap justify-end gap-2">
-              {!showPromptOverlay && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowPromptOverlay(true);
-                  }}
-                  className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50 transition hover:bg-black/70"
-                  title="Pokaż prompt"
-                >
-                  Pokaż prompt
-                </button>
-              )}
-              {showPromptOverlay && (
+              {showPromptOverlay ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1080,18 +1067,19 @@ export default function Home() {
                 >
                   Użyj promptu
                 </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPromptOverlay(true);
+                  }}
+                  className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50 transition hover:bg-black/70"
+                  title="Pokaż prompt"
+                >
+                  Pokaż prompt
+                </button>
               )}
-              <Link
-                href="/firmy"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenIndex(null);
-                }}
-                className="rounded-md px-3 py-1 text-sm font-medium text-white bg-blue-600/90 border border-white/50 transition hover:bg-blue-600"
-                title="Znajdź firmę"
-              >
-                Znajdź firmę
-              </Link>
               <button
                 type="button"
                 onClick={(e) => {
@@ -1142,6 +1130,17 @@ export default function Home() {
                   />
                 </svg>
               </button>
+              <Link
+                href="/firmy"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFullscreenIndex(null);
+                }}
+                className="text-white rounded-md px-3 py-1 text-sm bg-black/60 border border-white/50 transition hover:bg-black/70"
+                title="Dopasuj projekt"
+              >
+                Dopasuj projekt
+              </Link>
             </div>
           </div>
         </div>
