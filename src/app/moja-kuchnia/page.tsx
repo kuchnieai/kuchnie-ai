@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import RoomSketchPad, { type Operation, type RoomSketchValue } from '@/components/RoomSketchPad';
 
 type Option = {
   value: string;
@@ -225,6 +226,122 @@ const CATEGORIES: Category[] = [
 
 const STORAGE_KEY = 'kuchnie-ai:moja-kuchnia';
 
+const createEmptySketch = (): RoomSketchValue => ({ operations: [] });
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
+const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+
+const sanitizePoint = (value: unknown) => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const point = value as { x?: unknown; y?: unknown };
+  if (!isFiniteNumber(point.x) || !isFiniteNumber(point.y)) {
+    return null;
+  }
+
+  return { x: clamp01(point.x), y: clamp01(point.y) };
+};
+
+const safeThickness = (value: unknown) => {
+  if (!isFiniteNumber(value)) {
+    return 4;
+  }
+  return Math.min(40, Math.max(1, value));
+};
+
+const safeText = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const createId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+
+const sanitizeSketch = (value: unknown): RoomSketchValue => {
+  if (!value || typeof value !== 'object') {
+    return createEmptySketch();
+  }
+
+  const container = value as { operations?: unknown };
+  if (!Array.isArray(container.operations)) {
+    return createEmptySketch();
+  }
+
+  const operations: Operation[] = [];
+
+  for (const raw of container.operations) {
+    if (!raw || typeof raw !== 'object') {
+      continue;
+    }
+
+    const entry = raw as Record<string, unknown>;
+    const id = typeof entry.id === 'string' && entry.id.trim().length > 0 ? entry.id : createId();
+
+    if (entry.type === 'freehand') {
+      const pointsInput = Array.isArray(entry.points) ? entry.points : [];
+      const points = pointsInput
+        .map((item) => sanitizePoint(item))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      if (points.length < 2) {
+        continue;
+      }
+
+      operations.push({
+        id,
+        type: 'freehand',
+        points,
+        thickness: safeThickness(entry.thickness),
+      });
+      continue;
+    }
+
+    if (entry.type === 'line') {
+      const start = sanitizePoint(entry.start);
+      const end = sanitizePoint(entry.end);
+      if (!start || !end) {
+        continue;
+      }
+
+      operations.push({
+        id,
+        type: 'line',
+        start,
+        end,
+        thickness: safeThickness(entry.thickness),
+      });
+      continue;
+    }
+
+    if (entry.type === 'text') {
+      const position = sanitizePoint(entry.position);
+      const text = safeText(entry.text);
+      if (!position || !text) {
+        continue;
+      }
+
+      const size = safeThickness(entry.size);
+
+      operations.push({
+        id,
+        type: 'text',
+        position,
+        text,
+        size,
+      });
+    }
+  }
+
+  return { operations };
+};
+
 const createEmptySelections = () =>
   CATEGORIES.reduce<Record<string, string[]>>((acc, category) => {
     acc[category.id] = [];
@@ -234,6 +351,7 @@ const createEmptySelections = () =>
 export default function MyKitchenPage() {
   const [selections, setSelections] = useState<Record<string, string[]>>(() => createEmptySelections());
   const [notes, setNotes] = useState('');
+  const [sketch, setSketch] = useState<RoomSketchValue>(() => createEmptySketch());
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -247,6 +365,7 @@ export default function MyKitchenPage() {
         const parsed = JSON.parse(stored) as {
           selections?: Record<string, unknown>;
           notes?: unknown;
+          sketch?: unknown;
         };
 
         if (parsed.selections && typeof parsed.selections === 'object') {
@@ -262,6 +381,10 @@ export default function MyKitchenPage() {
         if (typeof parsed.notes === 'string') {
           setNotes(parsed.notes);
         }
+
+        if (parsed.sketch) {
+          setSketch(sanitizeSketch(parsed.sketch));
+        }
       }
     } catch {
       // ignorujemy uszkodzone dane w pamięci
@@ -275,9 +398,9 @@ export default function MyKitchenPage() {
       return;
     }
 
-    const payload = JSON.stringify({ selections, notes });
+    const payload = JSON.stringify({ selections, notes, sketch });
     window.localStorage.setItem(STORAGE_KEY, payload);
-  }, [selections, notes, isLoaded]);
+  }, [selections, notes, sketch, isLoaded]);
 
   const toggleOption = (category: Category, value: string) => {
     setSelections((prev) => {
@@ -328,6 +451,7 @@ export default function MyKitchenPage() {
   const handleReset = () => {
     setSelections(createEmptySelections());
     setNotes('');
+    setSketch(createEmptySketch());
   };
 
   return (
@@ -467,6 +591,23 @@ export default function MyKitchenPage() {
                 </section>
               );
             })}
+
+            <section className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Szkic pomieszczenia</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Przenieś na kratkę kształt swojego pomieszczenia, zaznacz grubość ścian, wpisz wymiary i notatki.
+                  </p>
+                </div>
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                  Działa na dotyk i myszkę
+                </span>
+              </div>
+              <div className="mt-6">
+                <RoomSketchPad value={sketch} onChange={setSketch} />
+              </div>
+            </section>
 
             <section className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
