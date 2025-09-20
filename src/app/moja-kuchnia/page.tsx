@@ -3,7 +3,13 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { NormalizedPoint, Operation, RoomSketchPadProps, RoomSketchValue } from '@/components/RoomSketchPad';
+import type {
+  DimensionOperation,
+  NormalizedPoint,
+  Operation,
+  RoomSketchPadProps,
+  RoomSketchValue,
+} from '@/components/RoomSketchPad';
 
 type Option = {
   value: string;
@@ -325,6 +331,29 @@ function sanitizeOperation(value: unknown): Operation | null {
     };
   }
 
+  if (value.type === 'dimension') {
+    const start = sanitizeNormalizedPoint(value.start);
+    const end = sanitizeNormalizedPoint(value.end);
+    if (!start || !end) {
+      return null;
+    }
+
+    const label =
+      typeof value.label === 'number' && Number.isFinite(value.label) && value.label > 0
+        ? Math.round(value.label)
+        : 0;
+    const measurement = typeof value.measurement === 'string' ? value.measurement : '';
+
+    return {
+      id: value.id,
+      type: 'dimension',
+      start,
+      end,
+      label,
+      measurement,
+    } satisfies DimensionOperation;
+  }
+
   if (value.type === 'text') {
     const position = sanitizeNormalizedPoint(value.position);
     if (!position || typeof value.text !== 'string') {
@@ -355,7 +384,21 @@ function sanitizeSketchValue(value: unknown): RoomSketchValue {
     .map((entry) => sanitizeOperation(entry))
     .filter((entry): entry is Operation => entry !== null);
 
-  return { operations };
+  let dimensionCounter = 1;
+  const normalizedOperations = operations.map((operation) => {
+    if (operation.type !== 'dimension') {
+      return operation;
+    }
+
+    const normalized: DimensionOperation = {
+      ...operation,
+      label: dimensionCounter,
+    };
+    dimensionCounter += 1;
+    return normalized;
+  });
+
+  return { operations: normalizedOperations };
 }
 
 export default function MyKitchenPage() {
