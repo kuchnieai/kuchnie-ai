@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+import type { CompanyMapProps } from '@/components/CompanyMap';
 import { companies, cityFilters, serviceFilters } from '@/lib/companies';
 
 const ratingOptions = [
@@ -10,6 +12,15 @@ const ratingOptions = [
   { label: 'Min. 4.8', value: 4.8 },
 ];
 
+const CompanyMap = dynamic<CompanyMapProps>(() => import('@/components/CompanyMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[420px] w-full items-center justify-center text-sm text-slate-500">
+      Wczytywanie mapy...
+    </div>
+  ),
+});
+
 const formatCountLabel = (count: number) => {
   if (count === 1) {
     return '1 firmę';
@@ -18,6 +29,16 @@ const formatCountLabel = (count: number) => {
     return `${count} firmy`;
   }
   return `${count} firm`;
+};
+
+const formatCityCountLabel = (count: number) => {
+  if (count === 1) {
+    return '1 miasto';
+  }
+  if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) {
+    return `${count} miasta`;
+  }
+  return `${count} miast`;
 };
 
 export default function CompaniesPage() {
@@ -48,6 +69,19 @@ export default function CompaniesPage() {
       return matchesSearch && matchesCity && matchesServices && matchesRating;
     });
   }, [minRating, searchTerm, selectedCity, selectedServices]);
+
+  const filteredCityCount = useMemo(() => {
+    return new Set(filteredCompanies.map((company) => company.city)).size;
+  }, [filteredCompanies]);
+
+  const totalFiltered = filteredCompanies.length;
+
+  const mapSummaryLabel = useMemo(() => {
+    if (filteredCityCount === 0) {
+      return 'Brak firm spełniających wybrane kryteria';
+    }
+    return `${formatCityCountLabel(filteredCityCount)} · ${formatCountLabel(totalFiltered)}`;
+  }, [filteredCityCount, totalFiltered]);
 
   const sortedCompanies = useMemo(() => {
     return [...filteredCompanies].sort((a, b) => {
@@ -102,6 +136,30 @@ export default function CompaniesPage() {
           aby szybko zawęzić listę do firm, które najlepiej odpowiadają Twoim potrzebom projektowym i montażowym.
         </p>
       </header>
+
+      <section className="mb-12">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-xl font-semibold text-slate-900">Mapa partnerów kuchennych</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Pinezki pokazują firmy spełniające aktualnie wybrane kryteria wyszukiwania. Kliknij wybraną
+              lokalizację, aby wyświetlić szczegóły pracowni lub zawęzić wyniki do konkretnego miasta.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
+            {mapSummaryLabel}
+          </span>
+        </div>
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <CompanyMap
+            companies={filteredCompanies}
+            selectedCity={selectedCity}
+            onCitySelect={(city) =>
+              setSelectedCity((previous) => (previous === city ? 'all' : city))
+            }
+          />
+        </div>
+      </section>
 
       <section className="mb-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-3">
