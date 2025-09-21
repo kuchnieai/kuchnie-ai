@@ -1,9 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 
 export type NormalizedPoint = { x: number; y: number };
+
+export type DimensionDetailField = 'width' | 'height' | 'floorLevel' | 'depth' | 'wallOffset';
+
+export type DimensionDetailType = 'window' | 'radiator' | 'water' | 'powerCable' | 'socket' | 'ventilation';
+
+export type DimensionDetail = {
+  id: string;
+  type: DimensionDetailType;
+  values: Partial<Record<DimensionDetailField, string>>;
+};
+
 export type DimensionOperation = {
   id: string;
   type: 'dimension';
@@ -11,6 +22,7 @@ export type DimensionOperation = {
   end: NormalizedPoint;
   label: number;
   measurement: string;
+  details: DimensionDetail[];
 };
 
 export type Operation =
@@ -19,6 +31,81 @@ export type Operation =
   | { id: string; type: 'text'; position: NormalizedPoint; text: string; size: number }
   | DimensionOperation;
 export type RoomSketchValue = { operations: Operation[] };
+
+export type DimensionDetailDefinition = {
+  type: DimensionDetailType;
+  label: string;
+  fields: { name: DimensionDetailField; label: string }[];
+};
+
+export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
+  {
+    type: 'window',
+    label: 'Okno',
+    fields: [
+      { name: 'width', label: 'Szerokość' },
+      { name: 'height', label: 'Wysokość' },
+      { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
+      { name: 'depth', label: 'Głębokość' },
+      { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+    ],
+  },
+  {
+    type: 'radiator',
+    label: 'Grzejnik',
+    fields: [
+      { name: 'width', label: 'Szerokość' },
+      { name: 'height', label: 'Wysokość' },
+      { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
+      { name: 'depth', label: 'Głębokość' },
+      { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+    ],
+  },
+  {
+    type: 'water',
+    label: 'Woda',
+    fields: [
+      { name: 'width', label: 'Szerokość' },
+      { name: 'height', label: 'Wysokość' },
+      { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
+      { name: 'depth', label: 'Głębokość' },
+      { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+    ],
+  },
+  {
+    type: 'powerCable',
+    label: 'Prąd (kabel)',
+    fields: [
+      { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
+      { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+    ],
+  },
+  {
+    type: 'socket',
+    label: 'Gniazdko',
+    fields: [
+      { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
+      { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+    ],
+  },
+  {
+    type: 'ventilation',
+    label: 'Wentylacja',
+    fields: [
+      { name: 'width', label: 'Szerokość' },
+      { name: 'height', label: 'Wysokość' },
+      { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
+      { name: 'depth', label: 'Głębokość' },
+      { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+    ],
+  },
+];
+
+const DIMENSION_DETAIL_DEFINITION_MAP: Record<DimensionDetailType, DimensionDetailDefinition> =
+  DIMENSION_DETAIL_DEFINITIONS.reduce((acc, definition) => {
+    acc[definition.type] = definition;
+    return acc;
+  }, {} as Record<DimensionDetailType, DimensionDetailDefinition>);
 
 type DraftOperation =
   | { type: 'freehand'; thickness: number; points: NormalizedPoint[] }
@@ -649,6 +736,7 @@ function convertDraftToOperation(draft: DraftOperation, operations: Operation[])
       end,
       label,
       measurement: '',
+      details: [],
     };
   }
 
@@ -710,6 +798,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [isPanningActive, setIsPanningActive] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState<FullscreenMode>('none');
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
+  const [detailPickerForOperationId, setDetailPickerForOperationId] = useState<string | null>(null);
   const isFullscreen = fullscreenMode !== 'none';
   const viewportRef = useRef<ViewportState>(viewport);
 
@@ -941,6 +1030,105 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     [applyOperations],
   );
 
+  const handleToggleDetailPicker = useCallback((operationId: string) => {
+    setDetailPickerForOperationId((previous) => (previous === operationId ? null : operationId));
+  }, []);
+
+  const handleAddDimensionDetail = useCallback(
+    (operationId: string, detailType: DimensionDetailType) => {
+      const definition = DIMENSION_DETAIL_DEFINITION_MAP[detailType];
+      if (!definition) {
+        return;
+      }
+
+      applyOperations((operations) =>
+        operations.map((operation) => {
+          if (operation.type !== 'dimension' || operation.id !== operationId) {
+            return operation;
+          }
+
+          const detailValues: Partial<Record<DimensionDetailField, string>> = {};
+          definition.fields.forEach((field) => {
+            detailValues[field.name] = '';
+          });
+
+          const detail: DimensionDetail = {
+            id: createOperationId(),
+            type: detailType,
+            values: detailValues,
+          };
+
+          return { ...operation, details: [...operation.details, detail] };
+        }),
+      );
+
+      setDetailPickerForOperationId(null);
+    },
+    [applyOperations],
+  );
+
+  const handleRemoveDimensionDetail = useCallback(
+    (operationId: string, detailId: string) => {
+      applyOperations((operations) =>
+        operations.map((operation) => {
+          if (operation.type !== 'dimension' || operation.id !== operationId) {
+            return operation;
+          }
+
+          const nextDetails = operation.details.filter((detail) => detail.id !== detailId);
+          if (nextDetails.length === operation.details.length) {
+            return operation;
+          }
+
+          return { ...operation, details: nextDetails };
+        }),
+      );
+    },
+    [applyOperations],
+  );
+
+  const handleDimensionDetailFieldChange = useCallback(
+    (operationId: string, detailId: string, fieldName: DimensionDetailField, fieldValue: string) => {
+      applyOperations((operations) =>
+        operations.map((operation) => {
+          if (operation.type !== 'dimension' || operation.id !== operationId) {
+            return operation;
+          }
+
+          let hasChanged = false;
+          const nextDetails = operation.details.map((detail) => {
+            if (detail.id !== detailId) {
+              return detail;
+            }
+
+            const definition = DIMENSION_DETAIL_DEFINITION_MAP[detail.type];
+            if (!definition || !definition.fields.some((field) => field.name === fieldName)) {
+              return detail;
+            }
+
+            const currentValue = detail.values[fieldName] ?? '';
+            if (currentValue === fieldValue) {
+              return detail;
+            }
+
+            hasChanged = true;
+            return {
+              ...detail,
+              values: { ...detail.values, [fieldName]: fieldValue },
+            };
+          });
+
+          if (!hasChanged) {
+            return operation;
+          }
+
+          return { ...operation, details: nextDetails };
+        }),
+      );
+    },
+    [applyOperations],
+  );
+
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     const metrics = metricsRef.current;
@@ -986,6 +1174,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       setSelectedOperationId(null);
     }
   }, [selectedOperationId, value.operations]);
+
+  useEffect(() => {
+    if (detailPickerForOperationId && !value.operations.some((operation) => operation.id === detailPickerForOperationId)) {
+      setDetailPickerForOperationId(null);
+    }
+  }, [detailPickerForOperationId, value.operations]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -1723,28 +1917,122 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white/70">
-                {dimensionOperations.map((operation) => (
-                  <tr
-                    key={operation.id}
-                    className={operation.id === selectedOperationId ? 'bg-sky-50/70' : undefined}
-                    aria-selected={operation.id === selectedOperationId}
-                  >
-                    <td className="px-3 py-2 font-medium text-slate-900">#{operation.label}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={operation.measurement}
-                          onChange={(event) => handleDimensionMeasurementChange(operation.id, event.target.value)}
-                          placeholder="np. 120"
-                          className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                        />
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">cm</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {dimensionOperations.map((operation) => {
+                  const isSelected = operation.id === selectedOperationId;
+                  const details = operation.details ?? [];
+                  const isPickerOpen = detailPickerForOperationId === operation.id;
+                  return (
+                    <Fragment key={operation.id}>
+                      <tr className={isSelected ? 'bg-sky-50/70' : undefined} aria-selected={isSelected}>
+                        <td className="px-3 py-2 font-medium text-slate-900">#{operation.label}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={operation.measurement}
+                              onChange={(event) => handleDimensionMeasurementChange(operation.id, event.target.value)}
+                              placeholder="np. 120"
+                              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                            />
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">cm</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr className={isSelected ? 'bg-sky-50/40' : 'bg-slate-50/40'}>
+                        <td colSpan={2} className="px-3 pb-3 pt-0">
+                          <div className="space-y-3 rounded-xl border border-slate-200/70 bg-white/70 p-3 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleDetailPicker(operation.id)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+                                aria-expanded={isPickerOpen}
+                                aria-label={`Dodaj element do wymiaru #${operation.label}`}
+                              >
+                                <span aria-hidden>＋</span>
+                              </button>
+                              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Dodaj element do tego wymiaru
+                              </span>
+                            </div>
+
+                            {isPickerOpen && (
+                              <div className="flex flex-wrap gap-2">
+                                {DIMENSION_DETAIL_DEFINITIONS.map((definition) => (
+                                  <button
+                                    key={definition.type}
+                                    type="button"
+                                    onClick={() => handleAddDimensionDetail(operation.id, definition.type)}
+                                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+                                  >
+                                    {definition.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {details.length > 0 && (
+                              <div className="space-y-3">
+                                {details.map((detail) => {
+                                  const definition = DIMENSION_DETAIL_DEFINITION_MAP[detail.type];
+                                  if (!definition) {
+                                    return null;
+                                  }
+
+                                  return (
+                                    <div
+                                      key={detail.id}
+                                      className="space-y-3 rounded-lg border border-slate-200 bg-white/80 p-3 shadow-sm"
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                          {definition.label}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveDimensionDetail(operation.id, detail.id)}
+                                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                                          aria-label={`Usuń element ${definition.label}`}
+                                        >
+                                          <span aria-hidden>✕</span>
+                                        </button>
+                                      </div>
+                                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        {definition.fields.map((field) => (
+                                          <label
+                                            key={field.name}
+                                            className="flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500"
+                                          >
+                                            <span>{field.label}</span>
+                                            <input
+                                              type="text"
+                                              value={detail.values[field.name] ?? ''}
+                                              onChange={(event) =>
+                                                handleDimensionDetailFieldChange(
+                                                  operation.id,
+                                                  detail.id,
+                                                  field.name,
+                                                  event.target.value,
+                                                )
+                                              }
+                                              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                                              placeholder="np. 120"
+                                            />
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
