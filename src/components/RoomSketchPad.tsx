@@ -684,7 +684,6 @@ function getNormalizedPoint(
 
 export default function RoomSketchPad({ value, onChange, className }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const metricsRef = useRef<CanvasMetrics | null>(null);
   const operationsRef = useRef<Operation[]>(value.operations);
@@ -770,17 +769,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   );
 
   const combinedClassName = useMemo(() => {
-    const fullscreenClass =
-      fullscreenMode === 'manual'
-        ? 'fixed inset-0 z-[9999] box-border flex h-[100dvh] w-screen flex-col gap-4 overflow-hidden rounded-none border border-slate-200 bg-white/95 p-4 shadow-none sm:p-6'
-        : 'box-border flex h-full w-full flex-col gap-4 overflow-hidden rounded-none border border-slate-200 bg-white/95 p-4 shadow-none sm:p-6';
-    const defaultClass =
+    const base =
       '-ml-4 box-border w-[calc(100%_+_2rem)] flex flex-col gap-4 rounded-none border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:box-content sm:ml-0 sm:w-full sm:rounded-3xl sm:p-6';
-    const base = isFullscreen ? fullscreenClass : defaultClass;
     return [base, className ?? ''].filter(Boolean).join(' ');
-  }, [className, fullscreenMode, isFullscreen]);
+  }, [className]);
 
-  const manualFullscreenStyle = useMemo<CSSProperties | undefined>(() => {
+  const manualFullscreenContainerStyle = useMemo<CSSProperties | undefined>(() => {
     if (fullscreenMode !== 'manual') {
       return undefined;
     }
@@ -792,8 +786,29 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     };
   }, [fullscreenMode]);
 
+  const getToolButtonClassName = useCallback(
+    (isActive: boolean) =>
+      `flex h-10 w-10 items-center justify-center rounded-full border text-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+        isActive
+          ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+          : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+      }`,
+    [],
+  );
+
+  const canvasContainerClassName = useMemo(() => {
+    const base = 'relative w-full overflow-hidden bg-white transition-[border-radius]';
+    if (fullscreenMode === 'manual') {
+      return `${base} fixed inset-0 z-[9999] h-[100dvh] w-screen rounded-none border-none shadow-none`;
+    }
+    if (fullscreenMode === 'native') {
+      return `${base} h-[100dvh] w-screen rounded-none border-none shadow-none`;
+    }
+    return `${base} rounded-2xl border border-slate-200 shadow-sm min-h-[280px] max-h-[min(100vh,640px)] sm:min-h-[320px] sm:max-h-none`;
+  }, [fullscreenMode]);
+
   const handleEnterFullscreen = useCallback(() => {
-    const element = rootRef.current as FullscreenElement | null;
+    const element = containerRef.current as FullscreenElement | null;
     if (!element) {
       return;
     }
@@ -961,7 +976,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     const handleFullscreenChange = () => {
       const fullscreenElement = document.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
       clearFullscreenFallbackTimeout();
-      if (fullscreenElement === rootRef.current) {
+      if (fullscreenElement === containerRef.current) {
         setFullscreenMode('native');
       } else {
         setFullscreenMode((previous) => (previous === 'manual' ? 'manual' : 'none'));
@@ -1463,7 +1478,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const canDeleteSelected = Boolean(selectedOperationId);
 
   return (
-    <div ref={rootRef} className={combinedClassName} style={manualFullscreenStyle}>
+    <div className={combinedClassName}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Szkic pomieszczenia</h3>
@@ -1482,11 +1497,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                   onClick={() => setTool(toolOption.value)}
                   aria-pressed={isActive}
                   aria-label={toolOption.label}
-                  className={`flex h-10 w-10 items-center justify-center rounded-full border text-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
-                    isActive
-                      ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
-                  }`}
+                  className={getToolButtonClassName(isActive)}
                   title={toolOption.description}
                 >
                   <span aria-hidden>{toolOption.icon}</span>
@@ -1546,14 +1557,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         </span>
       </div>
 
-      <div
-        ref={containerRef}
-        className={`relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-white ${
-          isFullscreen
-            ? 'flex-1 min-h-0'
-            : 'min-h-[280px] max-h-[min(100vh,640px)] sm:min-h-[320px] sm:max-h-none'
-        }`}
-      >
+      <div ref={containerRef} className={canvasContainerClassName} style={manualFullscreenContainerStyle}>
         <canvas
           ref={canvasRef}
           className="block h-full w-full"
@@ -1563,6 +1567,84 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         />
+        {isFullscreen && (
+          <>
+            <div className="pointer-events-none absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
+              <div className="pointer-events-auto flex flex-wrap gap-2 rounded-2xl bg-white/90 p-2 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
+                {TOOL_CONFIG.map((toolOption) => {
+                  const isActive = toolOption.value === tool;
+                  return (
+                    <button
+                      key={`fullscreen-${toolOption.value}`}
+                      type="button"
+                      onClick={() => setTool(toolOption.value)}
+                      aria-pressed={isActive}
+                      aria-label={toolOption.label}
+                      className={getToolButtonClassName(isActive)}
+                      title={toolOption.description}
+                    >
+                      <span aria-hidden>{toolOption.icon}</span>
+                      <span className="sr-only">{toolOption.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="pointer-events-none absolute right-3 top-3 z-10 sm:right-4 sm:top-4">
+              <div className="pointer-events-auto flex flex-col items-stretch gap-2 rounded-2xl bg-white/90 p-2 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={handleExitFullscreen}
+                  className="w-full rounded-full border border-sky-400 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+                >
+                  Zamknij pełny ekran
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetViewport}
+                  disabled={isViewportDefault}
+                  className={`w-full rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isViewportDefault
+                      ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+                      : 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+                  }`}
+                >
+                  Wyśrodkuj
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className="w-full rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cofnij
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  disabled={!canClear}
+                  className="w-full rounded-full border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Wyczyść szkic
+                </button>
+                {canDeleteSelected && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelected}
+                    className="w-full rounded-full border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
+                  >
+                    Usuń zaznaczenie
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="pointer-events-none absolute left-3 bottom-3 z-10 sm:left-4 sm:bottom-4">
+              <div className="pointer-events-auto rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
+                Zoom: {zoomPercentage}%
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {dimensionOperations.length > 0 && (
