@@ -178,12 +178,6 @@ const DIMENSION_STROKE_COLOR = '#ef4444';
 const DIMENSION_LINE_WIDTH = 2;
 const DIMENSION_LABEL_FONT_SIZE = 16;
 const HIT_TEST_THRESHOLD_PX = 12;
-const FLOATING_PANEL_CLASS =
-  'rounded-2xl bg-white/90 p-2 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm';
-const TOOL_PANEL_CLASS = `flex flex-wrap gap-2 ${FLOATING_PANEL_CLASS}`;
-const ACTION_PANEL_INNER_CLASS = 'flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap';
-const ZOOM_INDICATOR_CLASS =
-  'rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm';
 
 function isDimensionOperation(operation: Operation): operation is DimensionOperation {
   return operation.type === 'dimension';
@@ -1701,97 +1695,76 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             Wybierz narzędzie i rysuj po kratce. Wszystko zapisuje się lokalnie na tym urządzeniu.
           </p>
         </div>
-        {!isFullscreen && (
-          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-start sm:justify-end">
-            <div className={TOOL_PANEL_CLASS}>
-              {TOOL_CONFIG.map((toolOption) => {
-                const isActive = toolOption.value === tool;
-                return (
-                  <button
-                    key={toolOption.value}
-                    type="button"
-                    onClick={() => setTool(toolOption.value)}
-                    aria-pressed={isActive}
-                    aria-label={toolOption.label}
-                    className={getToolButtonClassName(isActive)}
-                    title={toolOption.description}
-                  >
-                    <span aria-hidden>{toolOption.icon}</span>
-                    <span className="sr-only">{toolOption.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className={`${FLOATING_PANEL_CLASS} sm:ml-2`}>
-              <div className={ACTION_PANEL_INNER_CLASS}>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="flex flex-wrap gap-2">
+            {TOOL_CONFIG.map((toolOption) => {
+              const isActive = toolOption.value === tool;
+              return (
                 <button
+                  key={toolOption.value}
                   type="button"
-                  onClick={handleEnterFullscreen}
-                  className={getFullscreenActionButtonClassName('primary')}
-                  aria-label="Pełny ekran"
-                  title="Pełny ekran"
+                  onClick={() => setTool(toolOption.value)}
+                  aria-pressed={isActive}
+                  aria-label={toolOption.label}
+                  className={getToolButtonClassName(isActive)}
+                  title={toolOption.description}
                 >
-                  <span aria-hidden>🗖</span>
-                  <span className="sr-only">Pełny ekran</span>
+                  <span aria-hidden>{toolOption.icon}</span>
+                  <span className="sr-only">{toolOption.label}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleResetViewport}
-                  disabled={isViewportDefault}
-                  className={getFullscreenActionButtonClassName(
-                    isViewportDefault ? 'default' : 'primary',
-                  )}
-                  aria-label="Wyśrodkuj"
-                  title="Wyśrodkuj"
-                >
-                  <span aria-hidden>🎯</span>
-                  <span className="sr-only">Wyśrodkuj</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUndo}
-                  disabled={!canUndo}
-                  className={getFullscreenActionButtonClassName()}
-                  aria-label="Cofnij"
-                  title="Cofnij"
-                >
-                  <span aria-hidden>↩️</span>
-                  <span className="sr-only">Cofnij</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  disabled={!canClear}
-                  className={getFullscreenActionButtonClassName('danger')}
-                  aria-label="Wyczyść szkic"
-                  title="Wyczyść szkic"
-                >
-                  <span aria-hidden>🧹</span>
-                  <span className="sr-only">Wyczyść szkic</span>
-                </button>
-                {canDeleteSelected && (
-                  <button
-                    type="button"
-                    onClick={handleDeleteSelected}
-                    className={getFullscreenActionButtonClassName('danger')}
-                    aria-label="Usuń zaznaczenie"
-                    title="Usuń zaznaczenie"
-                  >
-                    <span aria-hidden>🗑️</span>
-                    <span className="sr-only">Usuń zaznaczenie</span>
-                  </button>
-                )}
-              </div>
-            </div>
+              );
+            })}
           </div>
-        )}
+          <div className="flex flex-wrap gap-2 sm:ml-2">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cofnij
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={!canClear}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Wyczyść szkic
+            </button>
+          </div>
+        </div>
       </div>
 
-      {!isFullscreen && (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className={ZOOM_INDICATOR_CLASS}>Zoom: {zoomPercentage}%</div>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={isFullscreen ? handleExitFullscreen : handleEnterFullscreen}
+          aria-pressed={isFullscreen}
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+            isFullscreen
+              ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+          }`}
+        >
+          {isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}
+        </button>
+        <button
+          type="button"
+          onClick={handleResetViewport}
+          disabled={isViewportDefault}
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+            isViewportDefault
+              ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+              : 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+          }`}
+        >
+          Wyśrodkuj
+        </button>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Zoom: {zoomPercentage}%
+        </span>
+      </div>
 
       <div ref={containerRef} className={canvasContainerClassName} style={manualFullscreenContainerStyle}>
         <canvas
@@ -1806,7 +1779,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         {isFullscreen && (
           <>
             <div className="pointer-events-none absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
-              <div className={`pointer-events-auto ${TOOL_PANEL_CLASS}`}>
+              <div className="pointer-events-auto flex flex-wrap gap-2 rounded-2xl bg-white/90 p-2 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
                 {TOOL_CONFIG.map((toolOption) => {
                   const isActive = toolOption.value === tool;
                   return (
@@ -1827,8 +1800,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               </div>
             </div>
             <div className="pointer-events-none absolute right-3 top-3 z-10 sm:right-4 sm:top-4">
-              <div className={`pointer-events-auto ${FLOATING_PANEL_CLASS}`}>
-                <div className={ACTION_PANEL_INNER_CLASS}>
+              <div className="pointer-events-auto rounded-2xl bg-white/90 p-2 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={handleExitFullscreen}
@@ -1888,7 +1861,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               </div>
             </div>
             <div className="pointer-events-none absolute left-3 bottom-3 z-10 sm:left-4 sm:bottom-4">
-              <div className={`pointer-events-auto ${ZOOM_INDICATOR_CLASS}`}>
+              <div className="pointer-events-auto rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
                 Zoom: {zoomPercentage}%
               </div>
             </div>
