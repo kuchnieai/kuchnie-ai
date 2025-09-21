@@ -563,7 +563,7 @@ export default function MyKitchenPage() {
             Moja kuchnia
           </span>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-            Projekt na wymiar twojej kuchni
+            Projekt na wymiar
           </h1>
           <p className="mt-4 text-lg text-slate-600">
             Potrzebujemy przybliżonych wymiarów twojej kuchni, aby przygotować dla Ciebie projekt. Masz 3
