@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 export type NormalizedPoint = { x: number; y: number };
 export type DimensionOperation = {
@@ -63,6 +63,7 @@ type DragState = {
   origin: Operation;
   startPoint: NormalizedPoint;
   hasMoved: boolean;
+  initialOperations: Operation[];
 };
 
 type FullscreenElement = HTMLElement & {
@@ -96,23 +97,235 @@ function isDimensionOperation(operation: Operation): operation is DimensionOpera
   return operation.type === 'dimension';
 }
 
-const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: string }[] = [
+function CursorIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      className="h-5 w-5"
+    >
+      <polygon points="5.25,3.5 5.25,19 9.75,14.5 12.15,21.5 14,20.6 11.25,13.5 18.25,15" />
+    </svg>
+  );
+}
+
+function FreehandIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M4 15c1.5-5 4-6 6-2s4 4 6-1 4-4 4.5 0"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LineIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <line x1="5" y1="19" x2="19" y2="5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DimensionIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M6 12h12" strokeLinecap="round" />
+      <path d="M6 12l2-2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 12l2 2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 12l-2-2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 12l-2 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PanIcon(): JSX.Element {
+  return (
+    <span aria-hidden="true" className="text-lg leading-none">
+      🤚
+    </span>
+  );
+}
+
+function TextIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M5 6h14" strokeLinecap="round" />
+      <path d="M12 6v12" strokeLinecap="round" />
+      <path d="M8 18h8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EnterFullscreenIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M7 4H4v3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 4h3v3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 17v3h3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 17v3h-3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ExitFullscreenIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M4 9h3V6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 9h-3V6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 20v-3H4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 20v-3h3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UndoIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M9 15L3 9l6-6M3 9h12a6 6 0 1 1 0 12h-3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function RedoIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M15 9l6 6-6 6M21 15H9a6 6 0 1 1 0-12h3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EraserIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M4.75 15.25 12.5 7.5a2 2 0 0 1 2.83 0l4.17 4.17a2 2 0 0 1 0 2.83l-5.17 5.17a2 2 0 0 1-1.42.59H9.58a2 2 0 0 1-1.41-.59l-3.42-3.42a2 2 0 0 1 0-2.83Z"
+        strokeLinejoin="round"
+      />
+      <path d="M8.5 19H20" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TrashIcon(): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M5 7h14" strokeLinecap="round" />
+      <path d="M10 10v6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 10v6" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M8.5 7 9 4.5A1.5 1.5 0 0 1 10.48 3h3.04A1.5 1.5 0 0 1 15 4.5L15.5 7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M6.5 7 7 19a2 2 0 0 0 2 1.9h6a2 2 0 0 0 2-1.9l.5-12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: ReactNode }[] = [
   {
     value: 'select',
     label: 'Zaznacz',
     description: 'Wybierz element, aby go przesunąć lub usunąć.',
-    icon: '🖱️',
+    icon: <CursorIcon />,
   },
-  { value: 'freehand', label: 'Odręczny', description: 'Rysuj swobodnie palcem lub myszą.', icon: '✏️' },
-  { value: 'line', label: 'Linia', description: 'Rysuj proste odcinki.', icon: '📐' },
+  {
+    value: 'freehand',
+    label: 'Odręczny',
+    description: 'Rysuj swobodnie palcem lub myszą.',
+    icon: <FreehandIcon />,
+  },
+  { value: 'line', label: 'Linia', description: 'Rysuj proste odcinki.', icon: <LineIcon /> },
   {
     value: 'dimension',
     label: 'Wymiary',
     description: 'Dodaj linie pomocnicze z numeracją.',
-    icon: '📏',
+    icon: <DimensionIcon />,
   },
-  { value: 'pan', label: 'Łapka', description: 'Przesuwaj widok szkicu.', icon: '🤚' },
-  { value: 'text', label: 'Tekst', description: 'Dodaj podpisy lub wymiary.', icon: '🔤' },
+  { value: 'pan', label: 'Łapka', description: 'Przesuwaj widok szkicu.', icon: <PanIcon /> },
+  { value: 'text', label: 'Tekst', description: 'Dodaj podpisy lub wymiary.', icon: <TextIcon /> },
 ];
 
 const MIN_SCALE = 0.5;
@@ -414,6 +627,62 @@ function cloneOperation(operation: Operation): Operation {
   };
 }
 
+function cloneOperations(operations: Operation[]): Operation[] {
+  return operations.map((operation) => cloneOperation(operation));
+}
+
+function areNormalizedPointsEqual(first: NormalizedPoint, second: NormalizedPoint): boolean {
+  return first.x === second.x && first.y === second.y;
+}
+
+function areOperationsEqual(first: Operation[], second: Operation[]): boolean {
+  if (first.length !== second.length) {
+    return false;
+  }
+
+  return first.every((operation, index) => areOperationEqual(operation, second[index]));
+}
+
+function areOperationEqual(first: Operation, second: Operation): boolean {
+  if (first.type !== second.type || first.id !== second.id) {
+    return false;
+  }
+
+  if (first.type === 'freehand' && second.type === 'freehand') {
+    if (first.thickness !== second.thickness || first.points.length !== second.points.length) {
+      return false;
+    }
+    return first.points.every((point, index) => areNormalizedPointsEqual(point, second.points[index]));
+  }
+
+  if (first.type === 'line' && second.type === 'line') {
+    return (
+      first.thickness === second.thickness &&
+      areNormalizedPointsEqual(first.start, second.start) &&
+      areNormalizedPointsEqual(first.end, second.end)
+    );
+  }
+
+  if (first.type === 'dimension' && second.type === 'dimension') {
+    return (
+      first.label === second.label &&
+      first.measurement === second.measurement &&
+      areNormalizedPointsEqual(first.start, second.start) &&
+      areNormalizedPointsEqual(first.end, second.end)
+    );
+  }
+
+  if (first.type === 'text' && second.type === 'text') {
+    return (
+      first.text === second.text &&
+      first.size === second.size &&
+      areNormalizedPointsEqual(first.position, second.position)
+    );
+  }
+
+  return false;
+}
+
 function translateNormalizedPoint(
   point: NormalizedPoint,
   deltaX: number,
@@ -697,6 +966,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const fullscreenFallbackTimeoutRef = useRef<number | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const selectedOperationIdRef = useRef<string | null>(null);
+  const undoStackRef = useRef<Operation[][]>([]);
+  const redoStackRef = useRef<Operation[][]>([]);
 
   const [tool, setTool] = useState<Tool>('freehand');
   const thickness = DEFAULT_THICKNESS;
@@ -705,14 +976,49 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [isPanningActive, setIsPanningActive] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState<FullscreenMode>('none');
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const isFullscreen = fullscreenMode !== 'none';
   const viewportRef = useRef<ViewportState>(viewport);
 
-  const applyOperations = useCallback(
-    (updater: (operations: Operation[]) => Operation[]) => {
-      const updatedOperations = updater(operationsRef.current);
-      const nextOperations = renumberDimensionOperations(updatedOperations);
-      operationsRef.current = nextOperations;
+  const updateHistoryState = useCallback(() => {
+    const nextState = {
+      canUndo: undoStackRef.current.length > 0,
+      canRedo: redoStackRef.current.length > 0,
+    };
+    setHistoryState((previous) =>
+      previous.canUndo === nextState.canUndo && previous.canRedo === nextState.canRedo
+        ? previous
+        : nextState,
+    );
+  }, []);
+
+  const commitOperations = useCallback(
+    (
+      nextOperations: Operation[],
+      options?: { previousOperations?: Operation[]; mode?: 'regular' | 'undo' | 'redo' },
+    ) => {
+      const previousOperations = options?.previousOperations ?? operationsRef.current;
+      const normalizedOperations = renumberDimensionOperations(nextOperations);
+      const hasChanged = !areOperationsEqual(normalizedOperations, previousOperations);
+
+      if (!hasChanged) {
+        updateHistoryState();
+        return;
+      }
+
+      operationsRef.current = normalizedOperations;
+
+      if (options?.mode === 'undo') {
+        redoStackRef.current = [...redoStackRef.current, cloneOperations(previousOperations)];
+      } else if (options?.mode === 'redo') {
+        undoStackRef.current = [...undoStackRef.current, cloneOperations(previousOperations)];
+      } else {
+        undoStackRef.current = [...undoStackRef.current, cloneOperations(previousOperations)];
+        redoStackRef.current = [];
+      }
+
+      updateHistoryState();
+
       const canvas = canvasRef.current;
       const metrics = metricsRef.current;
       if (canvas && metrics) {
@@ -721,16 +1027,25 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           drawAll(
             context,
             metrics,
-            nextOperations,
+            normalizedOperations,
             draftRef.current,
             viewportRef.current,
             selectedOperationIdRef.current,
           );
         }
       }
-      onChange({ operations: nextOperations });
+      onChange({ operations: normalizedOperations });
     },
-    [onChange],
+    [onChange, updateHistoryState],
+  );
+
+  const applyOperations = useCallback(
+    (updater: (operations: Operation[]) => Operation[], options?: { previousOperations?: Operation[] }) => {
+      const baseOperations = options?.previousOperations ?? operationsRef.current;
+      const updatedOperations = updater(baseOperations);
+      commitOperations(updatedOperations, { previousOperations: baseOperations, mode: 'regular' });
+    },
+    [commitOperations],
   );
 
   const clearFullscreenFallbackTimeout = useCallback(() => {
@@ -929,6 +1244,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     operationsRef.current = value.operations;
     redraw();
   }, [value.operations, redraw]);
+
+  useEffect(() => {
+    updateHistoryState();
+  }, [updateHistoryState]);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -1181,6 +1500,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             origin: cloneOperation(operation),
             startPoint: point,
             hasMoved: false,
+            initialOperations: cloneOperations(operationsRef.current),
           };
         }
         return;
@@ -1371,7 +1691,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       if (dragState && dragState.pointerId === event.pointerId) {
         dragStateRef.current = null;
         if (tool === 'select' && dragState.hasMoved) {
-          applyOperations((operations) => operations);
+          commitOperations(operationsRef.current, {
+            previousOperations: dragState.initialOperations,
+            mode: 'regular',
+          });
         }
         return;
       }
@@ -1383,7 +1706,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       pointerIdRef.current = null;
       commitDraft();
     },
-    [applyOperations, commitDraft, setIsPanningActive, thickness, tool],
+    [applyOperations, commitOperations, commitDraft, setIsPanningActive, thickness, tool],
   );
 
   const handlePointerCancel = useCallback(
@@ -1415,9 +1738,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       const dragState = dragStateRef.current;
       if (dragState && dragState.pointerId === event.pointerId) {
         if (dragState.hasMoved) {
-          operationsRef.current = operationsRef.current.map((operation) =>
-            operation.id === dragState.operationId ? dragState.origin : operation,
-          );
+          operationsRef.current = dragState.initialOperations;
           redraw();
         }
         dragStateRef.current = null;
@@ -1432,12 +1753,26 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   );
 
   const handleUndo = useCallback(() => {
-    if (operationsRef.current.length === 0) {
+    if (undoStackRef.current.length === 0) {
       return;
     }
 
-    applyOperations((operations) => operations.slice(0, -1));
-  }, [applyOperations]);
+    const previousStates = undoStackRef.current;
+    const nextOperations = previousStates[previousStates.length - 1];
+    undoStackRef.current = previousStates.slice(0, -1);
+    commitOperations(nextOperations, { previousOperations: operationsRef.current, mode: 'undo' });
+  }, [commitOperations]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) {
+      return;
+    }
+
+    const redoStates = redoStackRef.current;
+    const nextOperations = redoStates[redoStates.length - 1];
+    redoStackRef.current = redoStates.slice(0, -1);
+    commitOperations(nextOperations, { previousOperations: operationsRef.current, mode: 'redo' });
+  }, [commitOperations]);
 
   const handleClear = useCallback(() => {
     if (operationsRef.current.length === 0) {
@@ -1458,9 +1793,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     dragStateRef.current = null;
   }, [applyOperations, selectedOperationId]);
 
-  const canUndo = value.operations.length > 0;
+  const canUndo = historyState.canUndo;
+  const canRedo = historyState.canRedo;
   const canClear = value.operations.length > 0;
   const canDeleteSelected = Boolean(selectedOperationId);
+  const iconButtonClassName =
+    'inline-flex h-10 w-10 items-center justify-center rounded-full border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <div ref={rootRef} className={combinedClassName} style={manualFullscreenStyle}>
@@ -1480,49 +1818,101 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 type="button"
                 onClick={() => setTool(toolOption.value)}
                 aria-pressed={isActive}
-                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+                aria-label={toolOption.label}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
                   isActive
                     ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
                     : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
                 }`}
                 title={toolOption.description}
               >
-                <span aria-hidden>{toolOption.icon}</span>
-                {toolOption.label}
+                <span aria-hidden className="flex items-center justify-center text-base leading-none">
+                  {toolOption.icon}
+                </span>
+                <span className="sr-only">{toolOption.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={isFullscreen ? handleExitFullscreen : handleEnterFullscreen}
-          aria-pressed={isFullscreen}
-          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
-            isFullscreen
-              ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
-              : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
-          }`}
-        >
-          {isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}
-        </button>
-        <button
-          type="button"
-          onClick={handleResetViewport}
-          disabled={isViewportDefault}
-          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50 ${
-            isViewportDefault
-              ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
-              : 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
-          }`}
-        >
-          Wyśrodkuj
-        </button>
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Zoom: {zoomPercentage}%
-        </span>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={!canUndo}
+            className={`${iconButtonClassName} ${
+              canUndo
+                ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+                : 'border-slate-200 bg-white text-slate-300'
+            }`}
+            title="Cofnij"
+            aria-label="Cofnij"
+          >
+            <UndoIcon />
+            <span className="sr-only">Cofnij</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleRedo}
+            disabled={!canRedo}
+            className={`${iconButtonClassName} ${
+              canRedo
+                ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+                : 'border-slate-200 bg-white text-slate-300'
+            }`}
+            title="Przywróć"
+            aria-label="Przywróć"
+          >
+            <RedoIcon />
+            <span className="sr-only">Przywróć</span>
+          </button>
+          {canDeleteSelected && (
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              className={`${iconButtonClassName} border-rose-200 bg-white text-rose-600 hover:border-rose-300 hover:bg-rose-50`}
+              title="Usuń zaznaczenie"
+              aria-label="Usuń zaznaczenie"
+            >
+              <TrashIcon />
+              <span className="sr-only">Usuń zaznaczenie</span>
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={isFullscreen ? handleExitFullscreen : handleEnterFullscreen}
+            aria-pressed={isFullscreen}
+            className={`${iconButtonClassName} ${
+              isFullscreen
+                ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+            }`}
+            title={isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}
+            aria-label={isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}
+          >
+            {isFullscreen ? <ExitFullscreenIcon /> : <EnterFullscreenIcon />}
+            <span className="sr-only">{isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleResetViewport}
+            disabled={isViewportDefault}
+            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+              isViewportDefault
+                ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+                : 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+            }`}
+          >
+            Wyśrodkuj
+          </button>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Zoom: {zoomPercentage}%
+          </span>
+        </div>
       </div>
 
       <div
@@ -1598,38 +1988,28 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           {tool === 'text'
             ? 'Kliknij na kratkę, aby dodać tekst.'
             : tool === 'select'
-              ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub użyj przycisku Usuń zaznaczenie.'
+              ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub użyj ikony kosza, aby usunąć element.'
               : tool === 'dimension'
-              ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
-              : tool === 'pan'
-                ? 'Przeciągnij, aby przesunąć widok. Przybliżaj dwoma palcami, aby zmienić powiększenie.'
-                : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
+                ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
+                : tool === 'pan'
+                  ? 'Przeciągnij, aby przesunąć widok. Przybliżaj dwoma palcami, aby zmienić powiększenie.'
+                  : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
         </div>
         <div className="flex flex-wrap gap-2">
-          {canDeleteSelected && (
-            <button
-              type="button"
-              onClick={handleDeleteSelected}
-              className="rounded-full border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
-            >
-              Usuń zaznaczenie
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleUndo}
-            disabled={!canUndo}
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Cofnij
-          </button>
           <button
             type="button"
             onClick={handleClear}
             disabled={!canClear}
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${iconButtonClassName} ${
+              canClear
+                ? 'border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:bg-rose-50'
+                : 'border-slate-200 bg-white text-slate-300'
+            }`}
+            title="Wyczyść szkic"
+            aria-label="Wyczyść szkic"
           >
-            Wyczyść szkic
+            <EraserIcon />
+            <span className="sr-only">Wyczyść szkic</span>
           </button>
         </div>
       </div>
