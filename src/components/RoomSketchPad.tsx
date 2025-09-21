@@ -113,6 +113,7 @@ type DraftOperation =
   | { type: 'dimension'; label: number; start: NormalizedPoint; end: NormalizedPoint };
 
 type Tool = 'select' | 'freehand' | 'line' | 'text' | 'dimension' | 'pan';
+type QuickTool = Extract<Tool, 'freehand' | 'line' | 'dimension'>;
 
 type ViewportState = {
   scale: number;
@@ -225,6 +226,8 @@ const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: Reac
     icon: '📏',
   },
 ];
+
+const QUICK_TOOL_VALUES: QuickTool[] = ['freehand', 'line', 'dimension'];
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
@@ -1034,6 +1037,9 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [selectButtonPosition, setSelectButtonPosition] = useState<
     { operationId: string; left: number; top: number } | null
   >(null);
+  const [quickToolPalettePosition, setQuickToolPalettePosition] = useState<
+    { left: number; top: number } | null
+  >(null);
   const viewportRef = useRef<ViewportState>(viewport);
 
   const updateDeleteButtonPosition = useCallback(
@@ -1445,6 +1451,18 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
   useEffect(() => {
     if (tool !== 'select') {
+      setQuickToolPalettePosition(null);
+    }
+  }, [tool]);
+
+  useEffect(() => {
+    if (selectedOperationId) {
+      setQuickToolPalettePosition(null);
+    }
+  }, [selectedOperationId]);
+
+  useEffect(() => {
+    if (tool !== 'select') {
       setSelectedOperationId(null);
       dragStateRef.current = null;
     }
@@ -1600,6 +1618,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
         const metrics = metricsRef.current;
         dragStateRef.current = null;
+        setQuickToolPalettePosition(null);
 
         if (!metrics) {
           setSelectedOperationId(null);
@@ -1660,6 +1679,30 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             hasMoved: false,
             action,
           };
+        } else {
+          const container = containerRef.current;
+          if (container) {
+            const containerRect = container.getBoundingClientRect();
+            const containerWidth = container.clientWidth > 0 ? container.clientWidth : containerRect.width;
+            const containerHeight = container.clientHeight > 0 ? container.clientHeight : containerRect.height;
+            const paletteWidth = 156;
+            const paletteHeight = 60;
+            const halfPaletteWidth = paletteWidth / 2;
+            const halfPaletteHeight = paletteHeight / 2;
+            const offsetX = event.clientX - containerRect.left;
+            const offsetY = event.clientY - containerRect.top;
+            const maxLeft = containerWidth - halfPaletteWidth;
+            const maxTop = containerHeight - halfPaletteHeight;
+            const constrainedLeft = Math.min(
+              Math.max(offsetX, halfPaletteWidth),
+              maxLeft > halfPaletteWidth ? maxLeft : Math.max(containerWidth / 2, halfPaletteWidth),
+            );
+            const constrainedTop = Math.min(
+              Math.max(offsetY, halfPaletteHeight),
+              maxTop > halfPaletteHeight ? maxTop : Math.max(containerHeight / 2, halfPaletteHeight),
+            );
+            setQuickToolPalettePosition({ left: constrainedLeft, top: constrainedTop });
+          }
         }
         return;
       }
@@ -1984,6 +2027,14 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     updateDeleteButtonPosition(targetOperationId);
   }, [clearSelectButton, selectButtonPosition, setSelectedOperationId, setTool, updateDeleteButtonPosition]);
 
+  const handleQuickToolSelect = useCallback(
+    (nextTool: QuickTool) => {
+      setTool(nextTool);
+      setQuickToolPalettePosition(null);
+    },
+    [setTool],
+  );
+
   const canUndo = value.operations.length > 0;
   const canClear = value.operations.length > 0;
   const canDeleteSelected = Boolean(selectedOperationId);
@@ -2054,6 +2105,37 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         />
+        {tool === 'select' && !selectedOperationId && quickToolPalettePosition && (
+          <div
+            className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-[0_20px_40px_-24px_rgba(15,23,42,0.45)] ring-1 ring-slate-200 backdrop-blur"
+            style={{
+              left: `${quickToolPalettePosition.left}px`,
+              top: `${quickToolPalettePosition.top}px`,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              {QUICK_TOOL_VALUES.map((quickTool) => {
+                const toolOption = TOOL_CONFIG.find((item) => item.value === quickTool);
+                if (!toolOption) {
+                  return null;
+                }
+                return (
+                  <button
+                    key={quickTool}
+                    type="button"
+                    onClick={() => handleQuickToolSelect(quickTool)}
+                    className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg text-slate-600 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.45)] transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+                    aria-label={`Wybierz narzędzie ${toolOption.label}`}
+                    title={toolOption.description}
+                  >
+                    <span aria-hidden className="leading-none">{toolOption.icon}</span>
+                    <span className="sr-only">{toolOption.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {selectButtonPosition && !selectedOperationId && (
           <button
             type="button"
