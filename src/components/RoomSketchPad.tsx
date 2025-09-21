@@ -82,6 +82,8 @@ const PRIMARY_STROKE_COLOR = '#0f172a';
 const DIMENSION_STROKE_COLOR = '#ef4444';
 const DIMENSION_LINE_WIDTH = 2;
 const DIMENSION_LABEL_FONT_SIZE = 16;
+const DIMENSION_MEASUREMENT_FONT_SIZE = 12;
+const DIMENSION_MEASUREMENT_GAP = 6;
 
 function isDimensionOperation(operation: Operation): operation is DimensionOperation {
   return operation.type === 'dimension';
@@ -259,6 +261,27 @@ function drawOperation(
 
     ctx.fillStyle = DIMENSION_STROKE_COLOR;
     ctx.fillText(label, centerX, centerY);
+
+    const measurement = operation.measurement.trim();
+    if (measurement.length > 0) {
+      ctx.font = `${DIMENSION_MEASUREMENT_FONT_SIZE}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+      const measurementPadding = 3;
+      const measurementMetrics = ctx.measureText(measurement);
+      const measurementWidth = measurementMetrics.width + measurementPadding * 2;
+      const measurementHeight = DIMENSION_MEASUREMENT_FONT_SIZE + measurementPadding * 2;
+      const measurementCenterY = centerY + textHeight / 2 + measurementHeight / 2 + DIMENSION_MEASUREMENT_GAP;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.fillRect(
+        centerX - measurementWidth / 2,
+        measurementCenterY - measurementHeight / 2,
+        measurementWidth,
+        measurementHeight,
+      );
+
+      ctx.fillStyle = '#000000';
+      ctx.fillText(measurement, centerX, measurementCenterY);
+    }
     ctx.restore();
     return;
   }
