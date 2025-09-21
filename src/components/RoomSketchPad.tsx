@@ -844,7 +844,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     [],
   );
   const canvasContainerClassName =
-    'relative w-full overflow-hidden bg-white transition-[border-radius] rounded-2xl border border-slate-200 shadow-sm min-h-[350px] max-h-[min(100vh,800px)] sm:min-h-[400px] sm:max-h-none';
+    'relative w-full overflow-hidden bg-white transition-[border-radius] rounded-2xl border border-slate-200 shadow-sm min-h-[calc(350px*1.25)] max-h-[min(125vh,1000px)] sm:min-h-[400px] sm:max-h-none';
 
   const handleResetViewport = useCallback(() => {
     updateViewport(() => ({ scale: 1, offsetX: 0, offsetY: 0 }));
