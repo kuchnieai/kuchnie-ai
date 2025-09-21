@@ -1,7 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
+
 import { companies, cityFilters, serviceFilters } from '@/lib/companies';
+
+const CompanyMap = dynamic(() => import('@/components/CompanyMap'), {
+  ssr: false,
+});
 
 const ratingOptions = [
   { label: 'Dowolna ocena', value: 0 },
@@ -90,18 +96,23 @@ export default function CompaniesPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-      <header className="mx-auto mb-10 max-w-3xl text-center sm:mb-14">
-        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-600">
-          Katalog firm
-        </span>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-          Znajdź partnera do stworzenia kuchni marzeń
-        </h1>
-        <p className="mt-4 text-base text-slate-600 sm:text-lg">
-          Zebraliśmy 100 pracowni kuchennych z dziesięciu największych miast w Polsce. Skorzystaj z filtrów,
-          aby szybko zawęzić listę do firm, które najlepiej odpowiadają Twoim potrzebom projektowym i montażowym.
-        </p>
-      </header>
+      <section className="mb-12 grid gap-8 lg:grid-cols-[minmax(0,0.55fr)_minmax(0,1fr)] lg:items-center">
+        <div className="order-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:order-2">
+          <CompanyMap companies={sortedCompanies} />
+        </div>
+        <header className="order-2 mx-auto max-w-3xl text-center lg:order-1 lg:mx-0 lg:text-left">
+          <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-600">
+            Katalog firm
+          </span>
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            Znajdź partnera do stworzenia kuchni marzeń
+          </h1>
+          <p className="mt-4 text-base text-slate-600 sm:text-lg">
+            Zebraliśmy 100 pracowni kuchennych z dziesięciu największych miast w Polsce. Wykorzystaj interaktywną mapę oraz
+            filtry, aby szybko zawęzić listę do firm, które najlepiej odpowiadają Twoim potrzebom projektowym i montażowym.
+          </p>
+        </header>
+      </section>
 
       <section className="mb-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-3">
