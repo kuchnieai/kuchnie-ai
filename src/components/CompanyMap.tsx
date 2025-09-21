@@ -146,7 +146,7 @@ const CompanyMap = ({ companies, selectedCity, onCitySelect }: CompanyMapProps) 
   }, [companyMarkers]);
 
   return (
-    <div className="relative h-[420px] w-full">
+    <div className="relative isolate z-0 h-[420px] w-full">
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
