@@ -1480,7 +1480,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 type="button"
                 onClick={() => setTool(toolOption.value)}
                 aria-pressed={isActive}
-                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+                aria-label={toolOption.label}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border text-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
                   isActive
                     ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
                     : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
@@ -1488,7 +1489,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 title={toolOption.description}
               >
                 <span aria-hidden>{toolOption.icon}</span>
-                {toolOption.label}
+                <span className="sr-only">{toolOption.label}</span>
               </button>
             );
           })}
