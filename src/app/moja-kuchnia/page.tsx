@@ -3,11 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 
-import { DIMENSION_DETAIL_DEFINITIONS } from '@/components/RoomSketchPad';
 import type {
-  DimensionDetail,
-  DimensionDetailField,
-  DimensionDetailType,
   DimensionOperation,
   NormalizedPoint,
   Operation,
@@ -277,50 +273,6 @@ function sanitizeNormalizedPoint(value: unknown): NormalizedPoint | null {
   return { x, y };
 }
 
-const DIMENSION_DETAIL_FIELDS_BY_TYPE: Record<DimensionDetailType, DimensionDetailField[]> =
-  DIMENSION_DETAIL_DEFINITIONS.reduce((acc, definition) => {
-    acc[definition.type] = definition.fields.map((field) => field.name);
-    return acc;
-  }, {} as Record<DimensionDetailType, DimensionDetailField[]>);
-
-const DIMENSION_DETAIL_TYPE_SET = new Set<DimensionDetailType>(
-  DIMENSION_DETAIL_DEFINITIONS.map((definition) => definition.type),
-);
-
-function sanitizeDimensionDetail(value: unknown): DimensionDetail | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  if (typeof value.id !== 'string') {
-    return null;
-  }
-
-  if (typeof value.type !== 'string' || !DIMENSION_DETAIL_TYPE_SET.has(value.type as DimensionDetailType)) {
-    return null;
-  }
-
-  const type = value.type as DimensionDetailType;
-  const allowedFields = DIMENSION_DETAIL_FIELDS_BY_TYPE[type];
-  if (!allowedFields) {
-    return null;
-  }
-
-  const rawValues = isRecord(value.values) ? value.values : {};
-  const values: Partial<Record<DimensionDetailField, string>> = {};
-
-  allowedFields.forEach((fieldName) => {
-    const rawValue = rawValues[fieldName];
-    values[fieldName] = typeof rawValue === 'string' ? rawValue : '';
-  });
-
-  return {
-    id: value.id,
-    type,
-    values,
-  } satisfies DimensionDetail;
-}
-
 function sanitizeOperation(value: unknown): Operation | null {
   if (!isRecord(value)) {
     return null;
@@ -385,10 +337,6 @@ function sanitizeOperation(value: unknown): Operation | null {
         ? Math.round(value.label)
         : 0;
     const measurement = typeof value.measurement === 'string' ? value.measurement : '';
-    const rawDetails = Array.isArray(value.details) ? value.details : [];
-    const details = rawDetails
-      .map((entry) => sanitizeDimensionDetail(entry))
-      .filter((entry): entry is DimensionDetail => entry !== null);
 
     return {
       id: value.id,
@@ -397,7 +345,6 @@ function sanitizeOperation(value: unknown): Operation | null {
       end,
       label,
       measurement,
-      details,
     } satisfies DimensionOperation;
   }
 
