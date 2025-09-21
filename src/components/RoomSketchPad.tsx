@@ -152,6 +152,13 @@ type DragState = {
   hasMoved: boolean;
 };
 
+type BoundingBox = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
 type Props = {
   value: RoomSketchValue;
   onChange: (next: RoomSketchValue) => void;
@@ -628,6 +635,99 @@ function isPointNearText(
   return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
 }
 
+function getOperationBoundingBox(operation: Operation, metrics: CanvasMetrics): BoundingBox | null {
+  if (operation.type === 'freehand') {
+    const points = operation.points;
+    if (points.length === 0) {
+      return null;
+    }
+
+    let minX = points[0]!.x * metrics.width;
+    let maxX = minX;
+    let minY = points[0]!.y * metrics.height;
+    let maxY = minY;
+
+    for (let index = 1; index < points.length; index += 1) {
+      const point = points[index]!;
+      const px = point.x * metrics.width;
+      const py = point.y * metrics.height;
+      if (px < minX) {
+        minX = px;
+      }
+      if (px > maxX) {
+        maxX = px;
+      }
+      if (py < minY) {
+        minY = py;
+      }
+      if (py > maxY) {
+        maxY = py;
+      }
+    }
+
+    const padding = Math.max(operation.thickness, 8);
+    return {
+      minX: minX - padding,
+      minY: minY - padding,
+      maxX: maxX + padding,
+      maxY: maxY + padding,
+    };
+  }
+
+  if (operation.type === 'line') {
+    const startX = operation.start.x * metrics.width;
+    const startY = operation.start.y * metrics.height;
+    const endX = operation.end.x * metrics.width;
+    const endY = operation.end.y * metrics.height;
+    const padding = Math.max(operation.thickness / 2, 6);
+    return {
+      minX: Math.min(startX, endX) - padding,
+      minY: Math.min(startY, endY) - padding,
+      maxX: Math.max(startX, endX) + padding,
+      maxY: Math.max(startY, endY) + padding,
+    };
+  }
+
+  if (operation.type === 'dimension') {
+    const startX = operation.start.x * metrics.width;
+    const startY = operation.start.y * metrics.height;
+    const endX = operation.end.x * metrics.width;
+    const endY = operation.end.y * metrics.height;
+    const padding = 8;
+    let minX = Math.min(startX, endX) - padding;
+    let maxX = Math.max(startX, endX) + padding;
+    let minY = Math.min(startY, endY) - padding;
+    let maxY = Math.max(startY, endY) + padding;
+
+    const centerX = (startX + endX) / 2;
+    const centerY = (startY + endY) / 2;
+    const label = `${operation.label}`;
+    const approximateWidth = Math.max(label.length * (DIMENSION_LABEL_FONT_SIZE * 0.6), DIMENSION_LABEL_FONT_SIZE);
+    const halfLabelWidth = (approximateWidth + padding * 2) / 2;
+    const halfLabelHeight = (DIMENSION_LABEL_FONT_SIZE + padding * 2) / 2;
+
+    minX = Math.min(minX, centerX - halfLabelWidth);
+    maxX = Math.max(maxX, centerX + halfLabelWidth);
+    minY = Math.min(minY, centerY - halfLabelHeight);
+    maxY = Math.max(maxY, centerY + halfLabelHeight);
+
+    return { minX, minY, maxX, maxY };
+  }
+
+  const originX = operation.position.x * metrics.width;
+  const originY = operation.position.y * metrics.height;
+  const textHeight = operation.size;
+  const approximateWidth = Math.max(operation.text.length * (operation.size * 0.6), textHeight);
+  const padding = 6;
+
+  return {
+    minX: originX - padding,
+    minY: originY - padding,
+    maxX: originX + approximateWidth + padding,
+    maxY: originY + textHeight + padding,
+  };
+}
+
 function isPointNearOperation(point: NormalizedPoint, operation: Operation, metrics: CanvasMetrics): boolean {
   const px = point.x * metrics.width;
   const py = point.y * metrics.height;
@@ -796,7 +896,60 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [isPanningActive, setIsPanningActive] = useState(false);
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
   const [detailPickerForOperationId, setDetailPickerForOperationId] = useState<string | null>(null);
+  const [deleteButtonPosition, setDeleteButtonPosition] = useState<{ left: number; top: number } | null>(null);
   const viewportRef = useRef<ViewportState>(viewport);
+
+  const updateDeleteButtonPosition = useCallback(() => {
+    if (!selectedOperationId) {
+      setDeleteButtonPosition((previous) => (previous ? null : previous));
+      return;
+    }
+
+    const metrics = metricsRef.current;
+    const container = containerRef.current;
+    if (!metrics || !container) {
+      setDeleteButtonPosition((previous) => (previous ? null : previous));
+      return;
+    }
+
+    const operations = operationsRef.current;
+    const operation = operations.find((item) => item.id === selectedOperationId);
+    if (!operation) {
+      setDeleteButtonPosition((previous) => (previous ? null : previous));
+      return;
+    }
+
+    const boundingBox = getOperationBoundingBox(operation, metrics);
+    if (!boundingBox) {
+      setDeleteButtonPosition((previous) => (previous ? null : previous));
+      return;
+    }
+
+    const centerX = (boundingBox.minX + boundingBox.maxX) / 2;
+    const bottomY = boundingBox.maxY;
+    const screenX = viewport.offsetX + centerX * viewport.scale;
+    const screenY = viewport.offsetY + bottomY * viewport.scale;
+    const margin = 12;
+    const buttonSize = 40;
+    const halfButton = buttonSize / 2;
+    const containerWidth = container.clientWidth > 0 ? container.clientWidth : metrics.width;
+    const containerHeight = container.clientHeight > 0 ? container.clientHeight : metrics.height;
+    const maxLeft = containerWidth - halfButton;
+    const maxTop = containerHeight - halfButton;
+    const constrainedLeft = Math.min(Math.max(screenX, halfButton), maxLeft > halfButton ? maxLeft : Math.max(containerWidth / 2, halfButton));
+    const desiredTop = screenY + margin;
+    const constrainedTop = Math.min(
+      Math.max(desiredTop, halfButton),
+      maxTop > halfButton ? maxTop : Math.max(containerHeight / 2, halfButton),
+    );
+
+    setDeleteButtonPosition((previous) => {
+      if (previous && Math.abs(previous.left - constrainedLeft) < 0.5 && Math.abs(previous.top - constrainedTop) < 0.5) {
+        return previous;
+      }
+      return { left: constrainedLeft, top: constrainedTop };
+    });
+  }, [selectedOperationId, viewport]);
 
   const applyOperations = useCallback(
     (updater: (operations: Operation[]) => Operation[], options: { preserveRedo?: boolean } = {}) => {
@@ -825,8 +978,9 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         }
       }
       onChange({ operations: nextOperations });
+      updateDeleteButtonPosition();
     },
-    [onChange],
+    [onChange, updateDeleteButtonPosition],
   );
 
   const updateViewport = useCallback((updater: (previous: ViewportState) => ViewportState) => {
@@ -1025,7 +1179,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       }
     }
     lastAppliedOperationsRef.current = value.operations;
-  }, [value.operations, redraw]);
+    updateDeleteButtonPosition();
+  }, [redraw, updateDeleteButtonPosition, value.operations]);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -1041,6 +1196,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     selectedOperationIdRef.current = selectedOperationId;
     redraw();
   }, [selectedOperationId, redraw]);
+
+  useEffect(() => {
+    updateDeleteButtonPosition();
+  }, [updateDeleteButtonPosition]);
 
   useEffect(() => {
     if (selectedOperationId && !value.operations.some((operation) => operation.id === selectedOperationId)) {
@@ -1072,6 +1231,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     const updateMetrics = () => {
       metricsRef.current = getCanvasMetrics(canvas, container);
       redraw();
+      updateDeleteButtonPosition();
     };
 
     updateMetrics();
@@ -1091,7 +1251,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         cancelAnimationFrame(frame);
       }
     };
-  }, [redraw]);
+  }, [redraw, updateDeleteButtonPosition]);
 
   const commitDraft = useCallback(() => {
     const currentDraft = draftRef.current;
@@ -1331,6 +1491,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         );
         dragStateRef.current = { ...dragState, hasMoved: true };
         redraw();
+        updateDeleteButtonPosition();
         return;
       }
 
@@ -1371,7 +1532,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return { ...previous, end: point };
       });
     },
-    [redraw, tool, updatePinch, updateViewport],
+    [redraw, tool, updateDeleteButtonPosition, updatePinch, updateViewport],
   );
 
   const handlePointerUp = useCallback(
@@ -1467,6 +1628,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             operation.id === dragState.operationId ? dragState.origin : operation,
           );
           redraw();
+          updateDeleteButtonPosition();
         }
         dragStateRef.current = null;
       }
@@ -1476,7 +1638,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         setDraft(null);
       }
     },
-    [redraw, setIsPanningActive],
+    [redraw, setIsPanningActive, updateDeleteButtonPosition],
   );
 
   const handleUndo = useCallback(() => {
@@ -1541,18 +1703,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 </button>
               );
             })}
-            {canDeleteSelected && (
-              <button
-                type="button"
-                onClick={handleDeleteSelected}
-                aria-label="Usuń zaznaczenie"
-                title="Usuń zaznaczenie"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white text-xl text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
-              >
-                <span aria-hidden>🗑️</span>
-                <span className="sr-only">Usuń zaznaczenie</span>
-              </button>
-            )}
             <button
               type="button"
               onClick={handleClear}
@@ -1591,6 +1741,19 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         />
+        {canDeleteSelected && deleteButtonPosition && (
+          <button
+            type="button"
+            onClick={handleDeleteSelected}
+            aria-label="Usuń zaznaczony element"
+            title="Usuń zaznaczony element"
+            className="pointer-events-auto absolute z-20 flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border border-rose-200 bg-white text-xl text-rose-600 shadow-[0_10px_30px_-18px_rgba(225,29,72,0.6)] transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+            style={{ left: `${deleteButtonPosition.left}px`, top: `${deleteButtonPosition.top}px` }}
+          >
+            <span aria-hidden>🗑️</span>
+            <span className="sr-only">Usuń zaznaczony element</span>
+          </button>
+        )}
         <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-slate-900/70 px-3 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-sm">
           <span aria-hidden>Zoom: {zoomPercentage}%</span>
           <span className="sr-only">Aktualny poziom powiększenia: {zoomPercentage} procent</span>
@@ -1747,7 +1910,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {tool === 'select'
-            ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub użyj przycisku Usuń zaznaczenie.'
+            ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub skorzystaj z czerwonego przycisku kosza obok zaznaczenia.'
             : tool === 'dimension'
               ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
               : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
