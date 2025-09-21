@@ -144,12 +144,17 @@ type CanvasMetrics = {
 
 type DrawOperation = Operation | DraftOperation;
 
+type StraightOperation = Extract<Operation, { type: 'line' | 'dimension' }>;
+
+type DragAction = 'move' | 'resize-start' | 'resize-end';
+
 type DragState = {
   pointerId: number;
   operationId: string;
   origin: Operation;
   startPoint: NormalizedPoint;
   hasMoved: boolean;
+  action: DragAction;
 };
 
 type BoundingBox = {
@@ -173,9 +178,18 @@ const DIMENSION_STROKE_COLOR = '#ef4444';
 const DIMENSION_LINE_WIDTH = 2;
 const DIMENSION_LABEL_FONT_SIZE = 16;
 const HIT_TEST_THRESHOLD_PX = 12;
+const HANDLE_VISUAL_RADIUS_PX = 8;
+const HANDLE_OUTLINE_WIDTH = 2;
+const HANDLE_HIT_THRESHOLD_PX = 14;
 
 function isDimensionOperation(operation: Operation): operation is DimensionOperation {
   return operation.type === 'dimension';
+}
+
+function isStraightOperation(
+  operation: Operation,
+): operation is StraightOperation {
+  return operation.type === 'line' || operation.type === 'dimension';
 }
 
 const SELECT_TOOL_ICON = (
@@ -363,6 +377,25 @@ function drawOperation(
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
+
+    if (options?.isSelected) {
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = HANDLE_OUTLINE_WIDTH;
+      ctx.strokeStyle = '#0284c7';
+      ctx.fillStyle = '#ffffff';
+
+      ctx.beginPath();
+      ctx.arc(start.x, start.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.restore();
     return;
   }
@@ -406,6 +439,25 @@ function drawOperation(
 
     ctx.fillStyle = options?.isSelected ? '#0369a1' : DIMENSION_STROKE_COLOR;
     ctx.fillText(label, centerX, centerY);
+
+    if (options?.isSelected) {
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = HANDLE_OUTLINE_WIDTH;
+      ctx.strokeStyle = '#0284c7';
+      ctx.fillStyle = '#ffffff';
+
+      ctx.beginPath();
+      ctx.arc(start.x, start.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.restore();
     return;
   }
@@ -679,7 +731,7 @@ function getOperationBoundingBox(operation: Operation, metrics: CanvasMetrics): 
     const startY = operation.start.y * metrics.height;
     const endX = operation.end.x * metrics.width;
     const endY = operation.end.y * metrics.height;
-    const padding = Math.max(operation.thickness / 2, 6);
+    const padding = Math.max(operation.thickness / 2, HANDLE_VISUAL_RADIUS_PX + 2);
     return {
       minX: Math.min(startX, endX) - padding,
       minY: Math.min(startY, endY) - padding,
@@ -693,7 +745,7 @@ function getOperationBoundingBox(operation: Operation, metrics: CanvasMetrics): 
     const startY = operation.start.y * metrics.height;
     const endX = operation.end.x * metrics.width;
     const endY = operation.end.y * metrics.height;
-    const padding = 8;
+    const padding = Math.max(8, HANDLE_VISUAL_RADIUS_PX + 2);
     let minX = Math.min(startX, endX) - padding;
     let maxX = Math.max(startX, endX) + padding;
     let minY = Math.min(startY, endY) - padding;
@@ -757,6 +809,60 @@ function isPointNearOperation(point: NormalizedPoint, operation: Operation, metr
   }
 
   return isPointNearText({ x: px, y: py }, operation, metrics);
+}
+
+type HandleHit = 'start' | 'end';
+
+function getOperationHandleHit(
+  point: NormalizedPoint,
+  operation: StraightOperation,
+  metrics: CanvasMetrics,
+): HandleHit | null {
+  const px = point.x * metrics.width;
+  const py = point.y * metrics.height;
+  const startX = operation.start.x * metrics.width;
+  const startY = operation.start.y * metrics.height;
+  const endX = operation.end.x * metrics.width;
+  const endY = operation.end.y * metrics.height;
+
+  const startDistance = Math.hypot(px - startX, py - startY);
+  if (startDistance <= HANDLE_HIT_THRESHOLD_PX) {
+    return 'start';
+  }
+
+  const endDistance = Math.hypot(px - endX, py - endY);
+  if (endDistance <= HANDLE_HIT_THRESHOLD_PX) {
+    return 'end';
+  }
+
+  return null;
+}
+
+function updateOperationEndpoint(
+  operation: Operation,
+  endpoint: HandleHit,
+  point: NormalizedPoint,
+): Operation {
+  const sanitizedPoint = {
+    x: sanitizeNormalized(point.x),
+    y: sanitizeNormalized(point.y),
+  };
+
+  if (operation.type === 'line') {
+    if (endpoint === 'start') {
+      return { ...operation, start: sanitizedPoint };
+    }
+    return { ...operation, end: sanitizedPoint };
+  }
+
+  if (operation.type === 'dimension') {
+    if (endpoint === 'start') {
+      return { ...operation, start: sanitizedPoint };
+    }
+    return { ...operation, end: sanitizedPoint };
+  }
+
+  return operation;
 }
 
 function findOperationAtPoint(
@@ -1473,7 +1579,35 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           return;
         }
 
-        const operation = findOperationAtPoint(point, operationsRef.current, metrics);
+        const operations = operationsRef.current;
+
+        const selectedId = selectedOperationIdRef.current;
+        if (selectedId) {
+          const selectedOperation = operations.find((item) => item.id === selectedId);
+          if (selectedOperation && isStraightOperation(selectedOperation)) {
+            const handleHit = getOperationHandleHit(point, selectedOperation, metrics);
+            if (handleHit) {
+              try {
+                canvas.setPointerCapture(event.pointerId);
+              } catch {
+                // ignorujemy
+              }
+              const action: DragAction = handleHit === 'start' ? 'resize-start' : 'resize-end';
+              dragStateRef.current = {
+                pointerId: event.pointerId,
+                operationId: selectedOperation.id,
+                origin: cloneOperation(selectedOperation),
+                startPoint: point,
+                hasMoved: false,
+                action,
+              };
+              setSelectedOperationId(selectedOperation.id);
+              return;
+            }
+          }
+        }
+
+        const operation = findOperationAtPoint(point, operations, metrics);
         setSelectedOperationId(operation ? operation.id : null);
 
         if (operation) {
@@ -1482,12 +1616,22 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           } catch {
             // ignorujemy
           }
+          let action: DragAction = 'move';
+          if (isStraightOperation(operation)) {
+            const handleHit = getOperationHandleHit(point, operation, metrics);
+            if (handleHit === 'start') {
+              action = 'resize-start';
+            } else if (handleHit === 'end') {
+              action = 'resize-end';
+            }
+          }
           dragStateRef.current = {
             pointerId: event.pointerId,
             operationId: operation.id,
             origin: cloneOperation(operation),
             startPoint: point,
             hasMoved: false,
+            action,
           };
         }
         return;
@@ -1577,18 +1721,31 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
         const rect = canvas.getBoundingClientRect();
         const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
-        const deltaX = point.x - dragState.startPoint.x;
-        const deltaY = point.y - dragState.startPoint.y;
-
-        if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) {
-          return;
-        }
-
         event.preventDefault();
-        const translatedOperation = translateOperation(dragState.origin, deltaX, deltaY);
-        operationsRef.current = operationsRef.current.map((operation) =>
-          operation.id === dragState.operationId ? translatedOperation : operation,
-        );
+
+        if (dragState.action === 'move') {
+          const deltaX = point.x - dragState.startPoint.x;
+          const deltaY = point.y - dragState.startPoint.y;
+
+          if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) {
+            return;
+          }
+
+          const translatedOperation = translateOperation(dragState.origin, deltaX, deltaY);
+          operationsRef.current = operationsRef.current.map((operation) =>
+            operation.id === dragState.operationId ? translatedOperation : operation,
+          );
+        } else {
+          if (!isStraightOperation(dragState.origin)) {
+            return;
+          }
+
+          const endpoint: HandleHit = dragState.action === 'resize-start' ? 'start' : 'end';
+          const updatedOperation = updateOperationEndpoint(dragState.origin, endpoint, point);
+          operationsRef.current = operationsRef.current.map((operation) =>
+            operation.id === dragState.operationId ? updatedOperation : operation,
+          );
+        }
         dragStateRef.current = { ...dragState, hasMoved: true };
         redraw();
         updateDeleteButtonPosition();
