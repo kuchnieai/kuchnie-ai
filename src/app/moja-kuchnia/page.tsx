@@ -573,6 +573,8 @@ export default function MyKitchenPage() {
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[2fr,1fr] lg:items-start">
           <div className="space-y-8">
+            <RoomSketchPad value={sketch} onChange={setSketch} />
+
             {CATEGORIES.map((category) => {
               const selectedValues = selections[category.id] ?? [];
               const allValues = category.options.map((option) => option.value);
@@ -688,8 +690,6 @@ export default function MyKitchenPage() {
                 </section>
               );
             })}
-
-            <RoomSketchPad value={sketch} onChange={setSketch} />
 
             <section className="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
