@@ -753,9 +753,9 @@ export default function Home() {
       {showEmptyState ? (
         <p className="text-gray-500">Na razie pusto – opisz kuchnię i wyślij!</p>
       ) : (
-        <section className="columns-2 md:columns-3 gap-1">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-1">
           {pendingFrame && (
-            <figure className="mb-1 break-inside-avoid relative">
+            <figure className="relative">
               <div
                 className="relative w-full led-border rounded-xl bg-white shadow-sm"
                 style={{ aspectRatio: pendingFrame.aspectRatio.replace(':', ' / ') }}
@@ -771,7 +771,7 @@ export default function Home() {
           {projects.map((p, i) => (
             <figure
               key={p.id}
-              className="mb-1 break-inside-avoid relative"
+              className="relative"
             >
               <img
                 src={p.imageUrl}
