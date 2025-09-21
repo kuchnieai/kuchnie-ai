@@ -186,8 +186,6 @@ const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: stri
     description: 'Dodaj linie pomocnicze z numeracją.',
     icon: '📏',
   },
-  { value: 'pan', label: 'Łapka', description: 'Przesuwaj widok szkicu.', icon: '🤚' },
-  { value: 'text', label: 'Tekst', description: 'Dodaj podpisy lub wymiary.', icon: '🔤' },
 ];
 
 const MIN_SCALE = 0.5;
@@ -845,18 +843,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   );
   const canvasContainerClassName =
     'relative w-full overflow-hidden bg-white transition-[border-radius] rounded-2xl border border-slate-200 shadow-sm min-h-[calc(350px*1.25)] max-h-[min(125vh,1000px)] sm:min-h-[400px] sm:max-h-none';
-
-  const handleResetViewport = useCallback(() => {
-    updateViewport(() => ({ scale: 1, offsetX: 0, offsetY: 0 }));
-  }, [updateViewport]);
-
-  const isViewportDefault = useMemo(
-    () =>
-      Math.abs(viewport.scale - 1) < 0.001 &&
-      Math.abs(viewport.offsetX) < 0.5 &&
-      Math.abs(viewport.offsetY) < 0.5,
-    [viewport],
-  );
 
   const zoomPercentage = useMemo(() => Math.round(viewport.scale * 100), [viewport.scale]);
 
@@ -1544,18 +1530,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={handleResetViewport}
-          disabled={isViewportDefault}
-          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50 ${
-            isViewportDefault
-              ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
-              : 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
-          }`}
-        >
-          Wyśrodkuj
-        </button>
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Zoom: {zoomPercentage}%
         </span>
@@ -1718,15 +1692,11 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          {tool === 'text'
-            ? 'Kliknij na kratkę, aby dodać tekst.'
-            : tool === 'select'
-              ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub użyj przycisku Usuń zaznaczenie.'
-              : tool === 'dimension'
+          {tool === 'select'
+            ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub użyj przycisku Usuń zaznaczenie.'
+            : tool === 'dimension'
               ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
-              : tool === 'pan'
-                ? 'Przeciągnij, aby przesunąć widok. Przybliżaj dwoma palcami, aby zmienić powiększenie.'
-                : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
+              : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
         </div>
         <div className="flex flex-wrap gap-2">
           {canDeleteSelected && (
