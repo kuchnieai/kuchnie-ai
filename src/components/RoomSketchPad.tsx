@@ -1542,6 +1542,18 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 </button>
               );
             })}
+            {canDeleteSelected && (
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                aria-label="Usuń zaznaczenie"
+                title="Usuń zaznaczenie"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white text-xl text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+              >
+                <span aria-hidden>🗑️</span>
+                <span className="sr-only">Usuń zaznaczenie</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={handleClear}
@@ -1753,20 +1765,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             : tool === 'dimension'
               ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
               : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canDeleteSelected && (
-            <button
-              type="button"
-              onClick={handleDeleteSelected}
-              aria-label="Usuń zaznaczenie"
-              title="Usuń zaznaczenie"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white text-xl text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
-            >
-              <span aria-hidden>🗑️</span>
-              <span className="sr-only">Usuń zaznaczenie</span>
-            </button>
-          )}
         </div>
       </div>
     </div>
