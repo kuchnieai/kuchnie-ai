@@ -1464,35 +1464,55 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
   return (
     <div ref={rootRef} className={combinedClassName} style={manualFullscreenStyle}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Szkic pomieszczenia</h3>
           <p className="text-sm text-slate-600">
             Wybierz narzędzie i rysuj po kratce. Wszystko zapisuje się lokalnie na tym urządzeniu.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {TOOL_CONFIG.map((toolOption) => {
-            const isActive = toolOption.value === tool;
-            return (
-              <button
-                key={toolOption.value}
-                type="button"
-                onClick={() => setTool(toolOption.value)}
-                aria-pressed={isActive}
-                aria-label={toolOption.label}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border text-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
-                  isActive
-                    ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
-                }`}
-                title={toolOption.description}
-              >
-                <span aria-hidden>{toolOption.icon}</span>
-                <span className="sr-only">{toolOption.label}</span>
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="flex flex-wrap gap-2">
+            {TOOL_CONFIG.map((toolOption) => {
+              const isActive = toolOption.value === tool;
+              return (
+                <button
+                  key={toolOption.value}
+                  type="button"
+                  onClick={() => setTool(toolOption.value)}
+                  aria-pressed={isActive}
+                  aria-label={toolOption.label}
+                  className={`flex h-10 w-10 items-center justify-center rounded-full border text-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
+                    isActive
+                      ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
+                  }`}
+                  title={toolOption.description}
+                >
+                  <span aria-hidden>{toolOption.icon}</span>
+                  <span className="sr-only">{toolOption.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2 sm:ml-2">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cofnij
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={!canClear}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Wyczyść szkic
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1616,22 +1636,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               Usuń zaznaczenie
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleUndo}
-            disabled={!canUndo}
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Cofnij
-          </button>
-          <button
-            type="button"
-            onClick={handleClear}
-            disabled={!canClear}
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Wyczyść szkic
-          </button>
         </div>
       </div>
     </div>
