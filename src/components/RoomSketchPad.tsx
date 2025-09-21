@@ -897,59 +897,148 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
   const [detailPickerForOperationId, setDetailPickerForOperationId] = useState<string | null>(null);
   const [deleteButtonPosition, setDeleteButtonPosition] = useState<{ left: number; top: number } | null>(null);
+  const selectButtonOperationIdRef = useRef<string | null>(null);
+  const [selectButtonPosition, setSelectButtonPosition] = useState<
+    { operationId: string; left: number; top: number } | null
+  >(null);
   const viewportRef = useRef<ViewportState>(viewport);
 
-  const updateDeleteButtonPosition = useCallback(() => {
-    if (!selectedOperationId) {
-      setDeleteButtonPosition((previous) => (previous ? null : previous));
-      return;
-    }
-
-    const metrics = metricsRef.current;
-    const container = containerRef.current;
-    if (!metrics || !container) {
-      setDeleteButtonPosition((previous) => (previous ? null : previous));
-      return;
-    }
-
-    const operations = operationsRef.current;
-    const operation = operations.find((item) => item.id === selectedOperationId);
-    if (!operation) {
-      setDeleteButtonPosition((previous) => (previous ? null : previous));
-      return;
-    }
-
-    const boundingBox = getOperationBoundingBox(operation, metrics);
-    if (!boundingBox) {
-      setDeleteButtonPosition((previous) => (previous ? null : previous));
-      return;
-    }
-
-    const centerX = (boundingBox.minX + boundingBox.maxX) / 2;
-    const bottomY = boundingBox.maxY;
-    const screenX = viewport.offsetX + centerX * viewport.scale;
-    const screenY = viewport.offsetY + bottomY * viewport.scale;
-    const margin = 12;
-    const buttonSize = 40;
-    const halfButton = buttonSize / 2;
-    const containerWidth = container.clientWidth > 0 ? container.clientWidth : metrics.width;
-    const containerHeight = container.clientHeight > 0 ? container.clientHeight : metrics.height;
-    const maxLeft = containerWidth - halfButton;
-    const maxTop = containerHeight - halfButton;
-    const constrainedLeft = Math.min(Math.max(screenX, halfButton), maxLeft > halfButton ? maxLeft : Math.max(containerWidth / 2, halfButton));
-    const desiredTop = screenY + margin;
-    const constrainedTop = Math.min(
-      Math.max(desiredTop, halfButton),
-      maxTop > halfButton ? maxTop : Math.max(containerHeight / 2, halfButton),
-    );
-
-    setDeleteButtonPosition((previous) => {
-      if (previous && Math.abs(previous.left - constrainedLeft) < 0.5 && Math.abs(previous.top - constrainedTop) < 0.5) {
-        return previous;
+  const updateDeleteButtonPosition = useCallback(
+    (operationIdOverride?: string | null) => {
+      const targetOperationId = operationIdOverride ?? selectedOperationId;
+      if (!targetOperationId) {
+        setDeleteButtonPosition((previous) => (previous ? null : previous));
+        return;
       }
-      return { left: constrainedLeft, top: constrainedTop };
-    });
-  }, [selectedOperationId, viewport]);
+
+      const metrics = metricsRef.current;
+      const container = containerRef.current;
+      if (!metrics || !container) {
+        setDeleteButtonPosition((previous) => (previous ? null : previous));
+        return;
+      }
+
+      const operations = operationsRef.current;
+      const operation = operations.find((item) => item.id === targetOperationId);
+      if (!operation) {
+        setDeleteButtonPosition((previous) => (previous ? null : previous));
+        return;
+      }
+
+      const boundingBox = getOperationBoundingBox(operation, metrics);
+      if (!boundingBox) {
+        setDeleteButtonPosition((previous) => (previous ? null : previous));
+        return;
+      }
+
+      const centerX = (boundingBox.minX + boundingBox.maxX) / 2;
+      const bottomY = boundingBox.maxY;
+      const screenX = viewport.offsetX + centerX * viewport.scale;
+      const screenY = viewport.offsetY + bottomY * viewport.scale;
+      const margin = 12;
+      const buttonSize = 40;
+      const halfButton = buttonSize / 2;
+      const containerWidth = container.clientWidth > 0 ? container.clientWidth : metrics.width;
+      const containerHeight = container.clientHeight > 0 ? container.clientHeight : metrics.height;
+      const maxLeft = containerWidth - halfButton;
+      const maxTop = containerHeight - halfButton;
+      const constrainedLeft = Math.min(Math.max(screenX, halfButton), maxLeft > halfButton ? maxLeft : Math.max(containerWidth / 2, halfButton));
+      const desiredTop = screenY + margin;
+      const constrainedTop = Math.min(
+        Math.max(desiredTop, halfButton),
+        maxTop > halfButton ? maxTop : Math.max(containerHeight / 2, halfButton),
+      );
+
+      setDeleteButtonPosition((previous) => {
+        if (previous && Math.abs(previous.left - constrainedLeft) < 0.5 && Math.abs(previous.top - constrainedTop) < 0.5) {
+          return previous;
+        }
+        return { left: constrainedLeft, top: constrainedTop };
+      });
+    },
+    [selectedOperationId, viewport],
+  );
+
+  const clearSelectButton = useCallback(() => {
+    if (selectButtonOperationIdRef.current) {
+      selectButtonOperationIdRef.current = null;
+    }
+    setSelectButtonPosition((previous) => (previous ? null : previous));
+  }, []);
+
+  const updateSelectButtonPosition = useCallback(
+    (operationIdOverride?: string | null) => {
+      const targetOperationId = operationIdOverride ?? selectButtonOperationIdRef.current;
+      if (!targetOperationId) {
+        setSelectButtonPosition((previous) => (previous ? null : previous));
+        return;
+      }
+
+      const metrics = metricsRef.current;
+      const container = containerRef.current;
+      if (!metrics || !container) {
+        setSelectButtonPosition((previous) => (previous ? null : previous));
+        return;
+      }
+
+      const operations = operationsRef.current;
+      const operation = operations.find((item) => item.id === targetOperationId);
+      if (!operation) {
+        selectButtonOperationIdRef.current = null;
+        setSelectButtonPosition((previous) => (previous ? null : previous));
+        return;
+      }
+
+      const boundingBox = getOperationBoundingBox(operation, metrics);
+      if (!boundingBox) {
+        selectButtonOperationIdRef.current = null;
+        setSelectButtonPosition((previous) => (previous ? null : previous));
+        return;
+      }
+
+      const centerX = (boundingBox.minX + boundingBox.maxX) / 2;
+      const bottomY = boundingBox.maxY;
+      const screenX = viewport.offsetX + centerX * viewport.scale;
+      const screenY = viewport.offsetY + bottomY * viewport.scale;
+      const margin = 12;
+      const buttonSize = 40;
+      const halfButton = buttonSize / 2;
+      const containerWidth = container.clientWidth > 0 ? container.clientWidth : metrics.width;
+      const containerHeight = container.clientHeight > 0 ? container.clientHeight : metrics.height;
+      const maxLeft = containerWidth - halfButton;
+      const maxTop = containerHeight - halfButton;
+      const constrainedLeft = Math.min(
+        Math.max(screenX, halfButton),
+        maxLeft > halfButton ? maxLeft : Math.max(containerWidth / 2, halfButton),
+      );
+      const desiredTop = screenY + margin;
+      const constrainedTop = Math.min(
+        Math.max(desiredTop, halfButton),
+        maxTop > halfButton ? maxTop : Math.max(containerHeight / 2, halfButton),
+      );
+
+      setSelectButtonPosition((previous) => {
+        if (
+          previous &&
+          previous.operationId === targetOperationId &&
+          Math.abs(previous.left - constrainedLeft) < 0.5 &&
+          Math.abs(previous.top - constrainedTop) < 0.5
+        ) {
+          return previous;
+        }
+        return { operationId: targetOperationId, left: constrainedLeft, top: constrainedTop };
+      });
+    },
+    [viewport],
+  );
+
+  const showSelectButtonForOperation = useCallback(
+    (operationId: string) => {
+      selectButtonOperationIdRef.current = operationId;
+      updateSelectButtonPosition(operationId);
+    },
+    [updateSelectButtonPosition],
+  );
 
   const applyOperations = useCallback(
     (updater: (operations: Operation[]) => Operation[], options: { preserveRedo?: boolean } = {}) => {
@@ -1180,7 +1269,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     }
     lastAppliedOperationsRef.current = value.operations;
     updateDeleteButtonPosition();
-  }, [redraw, updateDeleteButtonPosition, value.operations]);
+    updateSelectButtonPosition();
+  }, [redraw, updateDeleteButtonPosition, updateSelectButtonPosition, value.operations]);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -1199,13 +1289,20 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
   useEffect(() => {
     updateDeleteButtonPosition();
-  }, [updateDeleteButtonPosition]);
+    updateSelectButtonPosition();
+  }, [updateDeleteButtonPosition, updateSelectButtonPosition]);
 
   useEffect(() => {
     if (selectedOperationId && !value.operations.some((operation) => operation.id === selectedOperationId)) {
       setSelectedOperationId(null);
     }
   }, [selectedOperationId, value.operations]);
+
+  useEffect(() => {
+    if (selectedOperationId) {
+      clearSelectButton();
+    }
+  }, [clearSelectButton, selectedOperationId]);
 
   useEffect(() => {
     if (detailPickerForOperationId && !value.operations.some((operation) => operation.id === detailPickerForOperationId)) {
@@ -1232,6 +1329,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       metricsRef.current = getCanvasMetrics(canvas, container);
       redraw();
       updateDeleteButtonPosition();
+      updateSelectButtonPosition();
     };
 
     updateMetrics();
@@ -1251,7 +1349,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         cancelAnimationFrame(frame);
       }
     };
-  }, [redraw, updateDeleteButtonPosition]);
+  }, [redraw, updateDeleteButtonPosition, updateSelectButtonPosition]);
 
   const commitDraft = useCallback(() => {
     const currentDraft = draftRef.current;
@@ -1267,7 +1365,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     }
 
     applyOperations((operations) => [...operations, operation]);
-  }, [applyOperations]);
+    showSelectButtonForOperation(operation.id);
+  }, [applyOperations, showSelectButtonForOperation]);
 
   const beginPinch = useCallback(() => {
     const container = containerRef.current;
@@ -1422,6 +1521,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return;
       }
 
+      clearSelectButton();
       pointerIdRef.current = event.pointerId;
       try {
         canvas.setPointerCapture(event.pointerId);
@@ -1444,7 +1544,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       setDraft({ type: 'line', thickness, start: point, end: point });
     },
-    [beginPinch, setIsPanningActive, thickness, tool],
+    [beginPinch, clearSelectButton, setIsPanningActive, thickness, tool],
   );
 
   const handlePointerMove = useCallback(
@@ -1566,6 +1666,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             size: thicknessToFontSize(thickness),
           };
           applyOperations((operations) => [...operations, operation]);
+          showSelectButtonForOperation(operation.id);
         }
         return;
       }
@@ -1592,7 +1693,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       pointerIdRef.current = null;
       commitDraft();
     },
-    [applyOperations, commitDraft, setIsPanningActive, thickness, tool],
+    [applyOperations, commitDraft, setIsPanningActive, showSelectButtonForOperation, thickness, tool],
   );
 
   const handlePointerCancel = useCallback(
@@ -1647,29 +1748,47 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     }
 
     const operationToUndo = operationsRef.current[operationsRef.current.length - 1]!;
+    if (selectButtonOperationIdRef.current === operationToUndo.id) {
+      clearSelectButton();
+    }
     redoStackRef.current = [...redoStackRef.current, operationToUndo];
 
     applyOperations((operations) => operations.slice(0, -1), { preserveRedo: true });
-  }, [applyOperations]);
+  }, [applyOperations, clearSelectButton]);
 
   const handleClear = useCallback(() => {
     if (operationsRef.current.length === 0) {
       return;
     }
+    clearSelectButton();
     applyOperations(() => []);
     setSelectedOperationId(null);
     dragStateRef.current = null;
-  }, [applyOperations]);
+  }, [applyOperations, clearSelectButton]);
 
   const handleDeleteSelected = useCallback(() => {
     if (!selectedOperationId) {
       return;
     }
     const idToDelete = selectedOperationId;
+    if (selectButtonOperationIdRef.current === idToDelete) {
+      clearSelectButton();
+    }
     applyOperations((operations) => operations.filter((operation) => operation.id !== idToDelete));
     setSelectedOperationId(null);
     dragStateRef.current = null;
-  }, [applyOperations, selectedOperationId]);
+  }, [applyOperations, clearSelectButton, selectedOperationId]);
+
+  const handleSelectButtonClick = useCallback(() => {
+    const targetOperationId = selectButtonPosition?.operationId;
+    if (!targetOperationId) {
+      return;
+    }
+    clearSelectButton();
+    setTool('select');
+    setSelectedOperationId(targetOperationId);
+    updateDeleteButtonPosition(targetOperationId);
+  }, [clearSelectButton, selectButtonPosition, setSelectedOperationId, setTool, updateDeleteButtonPosition]);
 
   const canUndo = value.operations.length > 0;
   const canClear = value.operations.length > 0;
@@ -1741,6 +1860,21 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         />
+        {selectButtonPosition && !selectedOperationId && (
+          <button
+            type="button"
+            onClick={handleSelectButtonClick}
+            aria-label="Zaznacz właśnie narysowany element"
+            title="Zaznacz właśnie narysowany element"
+            className="pointer-events-auto absolute z-20 flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border border-sky-200 bg-white text-lg text-sky-600 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)] transition hover:border-sky-300 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+            style={{ left: `${selectButtonPosition.left}px`, top: `${selectButtonPosition.top}px` }}
+          >
+            <span aria-hidden className="leading-none">
+              {SELECT_TOOL_ICON}
+            </span>
+            <span className="sr-only">Zaznacz właśnie narysowany element</span>
+          </button>
+        )}
         {canDeleteSelected && deleteButtonPosition && (
           <button
             type="button"
