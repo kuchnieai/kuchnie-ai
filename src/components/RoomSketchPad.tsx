@@ -394,16 +394,13 @@ function drawOperation(
       ctx.globalAlpha = 1;
       ctx.lineWidth = HANDLE_OUTLINE_WIDTH;
       ctx.strokeStyle = '#0284c7';
-      ctx.fillStyle = '#ffffff';
 
       ctx.beginPath();
       ctx.arc(start.x, start.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
-      ctx.fill();
       ctx.stroke();
 
       ctx.beginPath();
       ctx.arc(end.x, end.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
-      ctx.fill();
       ctx.stroke();
       ctx.restore();
     }
@@ -456,16 +453,13 @@ function drawOperation(
       ctx.globalAlpha = 1;
       ctx.lineWidth = HANDLE_OUTLINE_WIDTH;
       ctx.strokeStyle = '#0284c7';
-      ctx.fillStyle = '#ffffff';
 
       ctx.beginPath();
       ctx.arc(start.x, start.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
-      ctx.fill();
       ctx.stroke();
 
       ctx.beginPath();
       ctx.arc(end.x, end.y, HANDLE_VISUAL_RADIUS_PX, 0, Math.PI * 2);
-      ctx.fill();
       ctx.stroke();
       ctx.restore();
     }
