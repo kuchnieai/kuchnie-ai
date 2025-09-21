@@ -25,7 +25,7 @@ type DraftOperation =
   | { type: 'line'; thickness: number; start: NormalizedPoint; end: NormalizedPoint }
   | { type: 'dimension'; label: number; start: NormalizedPoint; end: NormalizedPoint };
 
-type Tool = 'freehand' | 'line' | 'text' | 'dimension' | 'pan';
+type Tool = 'select' | 'freehand' | 'line' | 'text' | 'dimension' | 'pan';
 
 type ViewportState = {
   scale: number;
@@ -57,6 +57,14 @@ type CanvasMetrics = {
 
 type DrawOperation = Operation | DraftOperation;
 
+type DragState = {
+  pointerId: number;
+  operationId: string;
+  origin: Operation;
+  startPoint: NormalizedPoint;
+  hasMoved: boolean;
+};
+
 type FullscreenElement = HTMLElement & {
   webkitRequestFullscreen?: () => Promise<void> | void;
   webkitEnterFullscreen?: () => Promise<void> | void;
@@ -82,12 +90,19 @@ const PRIMARY_STROKE_COLOR = '#0f172a';
 const DIMENSION_STROKE_COLOR = '#ef4444';
 const DIMENSION_LINE_WIDTH = 2;
 const DIMENSION_LABEL_FONT_SIZE = 16;
+const HIT_TEST_THRESHOLD_PX = 12;
 
 function isDimensionOperation(operation: Operation): operation is DimensionOperation {
   return operation.type === 'dimension';
 }
 
 const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: string }[] = [
+  {
+    value: 'select',
+    label: 'Zaznacz',
+    description: 'Wybierz element, aby go przesunąć lub usunąć.',
+    icon: '🖱️',
+  },
   { value: 'freehand', label: 'Odręczny', description: 'Rysuj swobodnie palcem lub myszą.', icon: '✏️' },
   { value: 'line', label: 'Linia', description: 'Rysuj proste odcinki.', icon: '📐' },
   {
@@ -181,7 +196,7 @@ function drawOperation(
   ctx: CanvasRenderingContext2D,
   metrics: CanvasMetrics,
   operation: DrawOperation,
-  options?: { isDraft?: boolean },
+  options?: { isDraft?: boolean; isSelected?: boolean },
 ): void {
   if (operation.type === 'freehand') {
     const points = operation.points;
@@ -195,8 +210,24 @@ function drawOperation(
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
+
+    if (options?.isSelected) {
+      ctx.beginPath();
+      ctx.lineWidth = operation.thickness + 6;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+      ctx.moveTo(firstX, firstY);
+      for (let index = 1; index < denormalized.length; index += 1) {
+        const point = denormalized[index];
+        ctx.lineTo(point.x, point.y);
+      }
+      if (denormalized.length === 1) {
+        ctx.lineTo(firstX, firstY);
+      }
+      ctx.stroke();
+    }
+
     ctx.lineWidth = operation.thickness;
-    ctx.strokeStyle = PRIMARY_STROKE_COLOR;
+    ctx.strokeStyle = options?.isSelected ? '#0284c7' : PRIMARY_STROKE_COLOR;
     ctx.globalAlpha = options?.isDraft ? 0.6 : 1;
     ctx.beginPath();
     ctx.moveTo(firstX, firstY);
@@ -218,8 +249,18 @@ function drawOperation(
 
     ctx.save();
     ctx.lineCap = 'round';
+
+    if (options?.isSelected) {
+      ctx.beginPath();
+      ctx.lineWidth = operation.thickness + 6;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+
     ctx.lineWidth = operation.thickness;
-    ctx.strokeStyle = PRIMARY_STROKE_COLOR;
+    ctx.strokeStyle = options?.isSelected ? '#0284c7' : PRIMARY_STROKE_COLOR;
     ctx.globalAlpha = options?.isDraft ? 0.6 : 1;
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
@@ -235,8 +276,17 @@ function drawOperation(
 
     ctx.save();
     ctx.lineCap = 'round';
+    if (options?.isSelected) {
+      ctx.beginPath();
+      ctx.lineWidth = DIMENSION_LINE_WIDTH + 6;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+
     ctx.lineWidth = DIMENSION_LINE_WIDTH;
-    ctx.strokeStyle = DIMENSION_STROKE_COLOR;
+    ctx.strokeStyle = options?.isSelected ? '#0284c7' : DIMENSION_STROKE_COLOR;
     ctx.globalAlpha = options?.isDraft ? 0.6 : 1;
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
@@ -254,10 +304,10 @@ function drawOperation(
     const textWidth = textMetrics.width + padding * 2;
     const textHeight = DIMENSION_LABEL_FONT_SIZE + padding * 2;
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillStyle = options?.isSelected ? 'rgba(224, 242, 254, 0.95)' : 'rgba(255, 255, 255, 0.9)';
     ctx.fillRect(centerX - textWidth / 2, centerY - textHeight / 2, textWidth, textHeight);
 
-    ctx.fillStyle = DIMENSION_STROKE_COLOR;
+    ctx.fillStyle = options?.isSelected ? '#0369a1' : DIMENSION_STROKE_COLOR;
     ctx.fillText(label, centerX, centerY);
     ctx.restore();
     return;
@@ -265,11 +315,20 @@ function drawOperation(
 
   const position = denormalizePoint(operation.position, metrics);
   ctx.save();
-  ctx.fillStyle = PRIMARY_STROKE_COLOR;
-  ctx.globalAlpha = options?.isDraft ? 0.7 : 1;
+  const padding = 4;
+  const text = operation.text;
   ctx.font = `${operation.size}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
   ctx.textBaseline = 'top';
-  ctx.fillText(operation.text, position.x, position.y);
+  if (options?.isSelected) {
+    const metricsText = ctx.measureText(text);
+    const textWidth = metricsText.width + padding * 2;
+    const textHeight = operation.size + padding * 2;
+    ctx.fillStyle = 'rgba(224, 242, 254, 0.95)';
+    ctx.fillRect(position.x - padding, position.y - padding, textWidth, textHeight);
+  }
+  ctx.fillStyle = options?.isSelected ? '#0284c7' : PRIMARY_STROKE_COLOR;
+  ctx.globalAlpha = options?.isDraft ? 0.7 : 1;
+  ctx.fillText(text, position.x, position.y);
   ctx.restore();
 }
 
@@ -307,6 +366,7 @@ function drawAll(
   operations: Operation[],
   draft: DraftOperation | null,
   viewport: ViewportState,
+  selectedOperationId: string | null,
 ): void {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -319,12 +379,227 @@ function drawAll(
   ctx.scale(viewport.scale, viewport.scale);
   drawGrid(ctx, metrics, viewport);
   operations.forEach((operation) => {
-    drawOperation(ctx, metrics, operation);
+    drawOperation(ctx, metrics, operation, { isSelected: operation.id === selectedOperationId });
   });
   if (draft) {
     drawOperation(ctx, metrics, draft, { isDraft: true });
   }
   ctx.restore();
+}
+
+function cloneOperation(operation: Operation): Operation {
+  if (operation.type === 'freehand') {
+    return { ...operation, points: operation.points.map((point) => ({ ...point })) };
+  }
+
+  if (operation.type === 'line') {
+    return {
+      ...operation,
+      start: { ...operation.start },
+      end: { ...operation.end },
+    };
+  }
+
+  if (operation.type === 'dimension') {
+    return {
+      ...operation,
+      start: { ...operation.start },
+      end: { ...operation.end },
+    };
+  }
+
+  return {
+    ...operation,
+    position: { ...operation.position },
+  };
+}
+
+function translateNormalizedPoint(
+  point: NormalizedPoint,
+  deltaX: number,
+  deltaY: number,
+): NormalizedPoint {
+  return {
+    x: sanitizeNormalized(point.x + deltaX),
+    y: sanitizeNormalized(point.y + deltaY),
+  };
+}
+
+function translateOperation(operation: Operation, deltaX: number, deltaY: number): Operation {
+  if (operation.type === 'freehand') {
+    return {
+      ...operation,
+      points: operation.points.map((point) => translateNormalizedPoint(point, deltaX, deltaY)),
+    };
+  }
+
+  if (operation.type === 'line') {
+    return {
+      ...operation,
+      start: translateNormalizedPoint(operation.start, deltaX, deltaY),
+      end: translateNormalizedPoint(operation.end, deltaX, deltaY),
+    };
+  }
+
+  if (operation.type === 'dimension') {
+    return {
+      ...operation,
+      start: translateNormalizedPoint(operation.start, deltaX, deltaY),
+      end: translateNormalizedPoint(operation.end, deltaX, deltaY),
+    };
+  }
+
+  return {
+    ...operation,
+    position: translateNormalizedPoint(operation.position, deltaX, deltaY),
+  };
+}
+
+function distancePointToSegment(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(px - x1, py - y1);
+  }
+
+  const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+  const clamped = Math.max(0, Math.min(1, t));
+  const closestX = x1 + clamped * dx;
+  const closestY = y1 + clamped * dy;
+  return Math.hypot(px - closestX, py - closestY);
+}
+
+function isPointNearFreehand(
+  point: { x: number; y: number },
+  operation: Extract<Operation, { type: 'freehand' }>,
+  metrics: CanvasMetrics,
+): boolean {
+  if (operation.points.length === 0) {
+    return false;
+  }
+
+  const denormalized = operation.points.map((segmentPoint) => ({
+    x: segmentPoint.x * metrics.width,
+    y: segmentPoint.y * metrics.height,
+  }));
+
+  if (denormalized.length === 1) {
+    const [{ x, y }] = denormalized;
+    return Math.hypot(point.x - x, point.y - y) <= HIT_TEST_THRESHOLD_PX;
+  }
+
+  for (let index = 0; index < denormalized.length - 1; index += 1) {
+    const start = denormalized[index];
+    const end = denormalized[index + 1];
+    const distance = distancePointToSegment(point.x, point.y, start.x, start.y, end.x, end.y);
+    if (distance <= HIT_TEST_THRESHOLD_PX) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isPointNearLine(
+  point: { x: number; y: number },
+  operation: Extract<Operation, { type: 'line' | 'dimension' }>,
+  metrics: CanvasMetrics,
+): boolean {
+  const start = { x: operation.start.x * metrics.width, y: operation.start.y * metrics.height };
+  const end = { x: operation.end.x * metrics.width, y: operation.end.y * metrics.height };
+  const distance = distancePointToSegment(point.x, point.y, start.x, start.y, end.x, end.y);
+  return distance <= HIT_TEST_THRESHOLD_PX;
+}
+
+function isPointNearText(
+  point: { x: number; y: number },
+  operation: Extract<Operation, { type: 'text' }>,
+  metrics: CanvasMetrics,
+): boolean {
+  const originX = operation.position.x * metrics.width;
+  const originY = operation.position.y * metrics.height;
+  const textHeight = operation.size;
+  const approximateWidth = Math.max(operation.text.length * (operation.size * 0.6), textHeight);
+  const padding = 6;
+
+  const minX = originX - padding;
+  const maxX = originX + approximateWidth + padding;
+  const minY = originY - padding;
+  const maxY = originY + textHeight + padding;
+
+  return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+}
+
+function isPointNearOperation(point: NormalizedPoint, operation: Operation, metrics: CanvasMetrics): boolean {
+  const px = point.x * metrics.width;
+  const py = point.y * metrics.height;
+
+  if (operation.type === 'freehand') {
+    return isPointNearFreehand({ x: px, y: py }, operation, metrics);
+  }
+
+  if (operation.type === 'line') {
+    return isPointNearLine({ x: px, y: py }, operation, metrics);
+  }
+
+  if (operation.type === 'dimension') {
+    if (isPointNearLine({ x: px, y: py }, operation, metrics)) {
+      return true;
+    }
+    const start = { x: operation.start.x * metrics.width, y: operation.start.y * metrics.height };
+    const end = { x: operation.end.x * metrics.width, y: operation.end.y * metrics.height };
+    const centerX = (start.x + end.x) / 2;
+    const centerY = (start.y + end.y) / 2;
+    const padding = 4;
+    const label = `${operation.label}`;
+    const approximateWidth = Math.max(label.length * (DIMENSION_LABEL_FONT_SIZE * 0.6), DIMENSION_LABEL_FONT_SIZE);
+    const halfWidth = (approximateWidth + padding * 2) / 2;
+    const halfHeight = (DIMENSION_LABEL_FONT_SIZE + padding * 2) / 2;
+    return px >= centerX - halfWidth && px <= centerX + halfWidth && py >= centerY - halfHeight && py <= centerY + halfHeight;
+  }
+
+  return isPointNearText({ x: px, y: py }, operation, metrics);
+}
+
+function findOperationAtPoint(
+  point: NormalizedPoint,
+  operations: Operation[],
+  metrics: CanvasMetrics,
+): Operation | null {
+  for (let index = operations.length - 1; index >= 0; index -= 1) {
+    const operation = operations[index];
+    if (isPointNearOperation(point, operation, metrics)) {
+      return operation;
+    }
+  }
+  return null;
+}
+
+function renumberDimensionOperations(operations: Operation[]): Operation[] {
+  let nextLabel = 1;
+
+  return operations.map((operation) => {
+    if (operation.type !== 'dimension') {
+      return operation;
+    }
+
+    if (operation.label === nextLabel) {
+      nextLabel += 1;
+      return operation;
+    }
+
+    const updatedOperation = { ...operation, label: nextLabel };
+    nextLabel += 1;
+    return updatedOperation;
+  });
 }
 
 function thicknessToFontSize(thickness: number): number {
@@ -420,6 +695,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const panStateRef = useRef<PanState | null>(null);
   const textPointerRef = useRef<{ pointerId: number; point: NormalizedPoint } | null>(null);
   const fullscreenFallbackTimeoutRef = useRef<number | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
+  const selectedOperationIdRef = useRef<string | null>(null);
 
   const [tool, setTool] = useState<Tool>('freehand');
   const [thickness, setThickness] = useState<number>(THICKNESS_PRESETS[1]);
@@ -427,8 +704,34 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [viewport, setViewport] = useState<ViewportState>({ scale: 1, offsetX: 0, offsetY: 0 });
   const [isPanningActive, setIsPanningActive] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState<FullscreenMode>('none');
+  const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
   const isFullscreen = fullscreenMode !== 'none';
   const viewportRef = useRef<ViewportState>(viewport);
+
+  const applyOperations = useCallback(
+    (updater: (operations: Operation[]) => Operation[]) => {
+      const updatedOperations = updater(operationsRef.current);
+      const nextOperations = renumberDimensionOperations(updatedOperations);
+      operationsRef.current = nextOperations;
+      const canvas = canvasRef.current;
+      const metrics = metricsRef.current;
+      if (canvas && metrics) {
+        const context = canvas.getContext('2d');
+        if (context) {
+          drawAll(
+            context,
+            metrics,
+            nextOperations,
+            draftRef.current,
+            viewportRef.current,
+            selectedOperationIdRef.current,
+          );
+        }
+      }
+      onChange({ operations: nextOperations });
+    },
+    [onChange],
+  );
 
   const clearFullscreenFallbackTimeout = useCallback(() => {
     if (fullscreenFallbackTimeoutRef.current !== null) {
@@ -580,6 +883,9 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     if (tool === 'text') {
       return 'text';
     }
+    if (tool === 'select') {
+      return 'pointer';
+    }
     if (tool === 'pan') {
       return isPanningActive ? 'grabbing' : 'grab';
     }
@@ -588,15 +894,15 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
   const handleDimensionMeasurementChange = useCallback(
     (id: string, measurement: string) => {
-      onChange({
-        operations: operationsRef.current.map((operation) =>
+      applyOperations((operations) =>
+        operations.map((operation) =>
           operation.type === 'dimension' && operation.id === id
             ? { ...operation, measurement }
             : operation,
         ),
-      });
+      );
     },
-    [onChange],
+    [applyOperations],
   );
 
   const redraw = useCallback(() => {
@@ -609,7 +915,14 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     if (!context) {
       return;
     }
-    drawAll(context, metrics, operationsRef.current, draftRef.current, viewportRef.current);
+    drawAll(
+      context,
+      metrics,
+      operationsRef.current,
+      draftRef.current,
+      viewportRef.current,
+      selectedOperationIdRef.current,
+    );
   }, []);
 
   useEffect(() => {
@@ -626,6 +939,17 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     viewportRef.current = viewport;
     redraw();
   }, [viewport, redraw]);
+
+  useEffect(() => {
+    selectedOperationIdRef.current = selectedOperationId;
+    redraw();
+  }, [selectedOperationId, redraw]);
+
+  useEffect(() => {
+    if (selectedOperationId && !value.operations.some((operation) => operation.id === selectedOperationId)) {
+      setSelectedOperationId(null);
+    }
+  }, [selectedOperationId, value.operations]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -683,6 +1007,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   }, [fullscreenMode]);
 
   useEffect(() => {
+    if (tool !== 'select') {
+      setSelectedOperationId(null);
+      dragStateRef.current = null;
+    }
+  }, [tool]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) {
@@ -727,8 +1058,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return;
     }
 
-    onChange({ operations: [...operationsRef.current, operation] });
-  }, [onChange]);
+    applyOperations((operations) => [...operations, operation]);
+  }, [applyOperations]);
 
   const beginPinch = useCallback(() => {
     const container = containerRef.current;
@@ -766,6 +1097,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       panStateRef.current = null;
       setIsPanningActive(false);
     }
+    dragStateRef.current = null;
     textPointerRef.current = null;
   }, [setDraft, setIsPanningActive]);
 
@@ -823,6 +1155,36 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       }
 
       const rect = canvas.getBoundingClientRect();
+
+      if (tool === 'select') {
+        const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
+        const metrics = metricsRef.current;
+        dragStateRef.current = null;
+
+        if (!metrics) {
+          setSelectedOperationId(null);
+          return;
+        }
+
+        const operation = findOperationAtPoint(point, operationsRef.current, metrics);
+        setSelectedOperationId(operation ? operation.id : null);
+
+        if (operation) {
+          try {
+            canvas.setPointerCapture(event.pointerId);
+          } catch {
+            // ignorujemy
+          }
+          dragStateRef.current = {
+            pointerId: event.pointerId,
+            operationId: operation.id,
+            origin: cloneOperation(operation),
+            startPoint: point,
+            hasMoved: false,
+          };
+        }
+        return;
+      }
 
       if (tool === 'text') {
         try {
@@ -899,6 +1261,31 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return;
       }
 
+      if (tool === 'select') {
+        const dragState = dragStateRef.current;
+        if (!dragState || dragState.pointerId !== event.pointerId) {
+          return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
+        const deltaX = point.x - dragState.startPoint.x;
+        const deltaY = point.y - dragState.startPoint.y;
+
+        if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) {
+          return;
+        }
+
+        event.preventDefault();
+        const translatedOperation = translateOperation(dragState.origin, deltaX, deltaY);
+        operationsRef.current = operationsRef.current.map((operation) =>
+          operation.id === dragState.operationId ? translatedOperation : operation,
+        );
+        dragStateRef.current = { ...dragState, hasMoved: true };
+        redraw();
+        return;
+      }
+
       const currentPan = panStateRef.current;
       if (currentPan && currentPan.pointerId === event.pointerId) {
         event.preventDefault();
@@ -936,7 +1323,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return { ...previous, end: point };
       });
     },
-    [updatePinch, updateViewport],
+    [redraw, tool, updatePinch, updateViewport],
   );
 
   const handlePointerUp = useCallback(
@@ -969,7 +1356,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             text,
             size: thicknessToFontSize(thickness),
           };
-          onChange({ operations: [...operationsRef.current, operation] });
+          applyOperations((operations) => [...operations, operation]);
         }
         return;
       }
@@ -980,6 +1367,15 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return;
       }
 
+      const dragState = dragStateRef.current;
+      if (dragState && dragState.pointerId === event.pointerId) {
+        dragStateRef.current = null;
+        if (tool === 'select' && dragState.hasMoved) {
+          applyOperations((operations) => operations);
+        }
+        return;
+      }
+
       if (pointerIdRef.current !== event.pointerId) {
         return;
       }
@@ -987,7 +1383,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       pointerIdRef.current = null;
       commitDraft();
     },
-    [commitDraft, onChange, setIsPanningActive, thickness],
+    [applyOperations, commitDraft, setIsPanningActive, thickness, tool],
   );
 
   const handlePointerCancel = useCallback(
@@ -1016,12 +1412,23 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         setIsPanningActive(false);
       }
 
+      const dragState = dragStateRef.current;
+      if (dragState && dragState.pointerId === event.pointerId) {
+        if (dragState.hasMoved) {
+          operationsRef.current = operationsRef.current.map((operation) =>
+            operation.id === dragState.operationId ? dragState.origin : operation,
+          );
+          redraw();
+        }
+        dragStateRef.current = null;
+      }
+
       if (pointerIdRef.current === event.pointerId) {
         pointerIdRef.current = null;
         setDraft(null);
       }
     },
-    [setIsPanningActive],
+    [redraw, setIsPanningActive],
   );
 
   const handleUndo = useCallback(() => {
@@ -1029,19 +1436,31 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return;
     }
 
-    const nextOperations = operationsRef.current.slice(0, -1);
-    onChange({ operations: nextOperations });
-  }, [onChange]);
+    applyOperations((operations) => operations.slice(0, -1));
+  }, [applyOperations]);
 
   const handleClear = useCallback(() => {
     if (operationsRef.current.length === 0) {
       return;
     }
-    onChange({ operations: [] });
-  }, [onChange]);
+    applyOperations(() => []);
+    setSelectedOperationId(null);
+    dragStateRef.current = null;
+  }, [applyOperations]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedOperationId) {
+      return;
+    }
+    const idToDelete = selectedOperationId;
+    applyOperations((operations) => operations.filter((operation) => operation.id !== idToDelete));
+    setSelectedOperationId(null);
+    dragStateRef.current = null;
+  }, [applyOperations, selectedOperationId]);
 
   const canUndo = value.operations.length > 0;
   const canClear = value.operations.length > 0;
+  const canDeleteSelected = Boolean(selectedOperationId);
 
   return (
     <div ref={rootRef} className={combinedClassName} style={manualFullscreenStyle}>
@@ -1086,7 +1505,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               type="button"
               onClick={() => setThickness(preset)}
               aria-pressed={isActive}
-              disabled={tool === 'dimension' || tool === 'pan'}
+              disabled={tool === 'dimension' || tool === 'pan' || tool === 'select'}
               className={`rounded-full border px-3 py-1 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-60 ${
                 isActive
                   ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
@@ -1170,7 +1589,11 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white/70">
                 {dimensionOperations.map((operation) => (
-                  <tr key={operation.id}>
+                  <tr
+                    key={operation.id}
+                    className={operation.id === selectedOperationId ? 'bg-sky-50/70' : undefined}
+                    aria-selected={operation.id === selectedOperationId}
+                  >
                     <td className="px-3 py-2 font-medium text-slate-900">#{operation.label}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
@@ -1197,13 +1620,24 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         <div>
           {tool === 'text'
             ? 'Kliknij na kratkę, aby dodać tekst.'
-            : tool === 'dimension'
+            : tool === 'select'
+              ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub użyj przycisku Usuń zaznaczenie.'
+              : tool === 'dimension'
               ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
               : tool === 'pan'
                 ? 'Przeciągnij, aby przesunąć widok. Przybliżaj dwoma palcami, aby zmienić powiększenie.'
                 : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
         </div>
         <div className="flex flex-wrap gap-2">
+          {canDeleteSelected && (
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              className="rounded-full border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
+            >
+              Usuń zaznaczenie
+            </button>
+          )}
           <button
             type="button"
             onClick={handleUndo}
