@@ -1759,9 +1759,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             <button
               type="button"
               onClick={handleDeleteSelected}
-              className="rounded-full border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
+              aria-label="Usuń zaznaczenie"
+              title="Usuń zaznaczenie"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white text-xl text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
             >
-              Usuń zaznaczenie
+              <span aria-hidden>🗑️</span>
+              <span className="sr-only">Usuń zaznaczenie</span>
             </button>
           )}
         </div>
