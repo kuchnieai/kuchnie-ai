@@ -769,6 +769,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const textPointerRef = useRef<{ pointerId: number; point: NormalizedPoint } | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const selectedOperationIdRef = useRef<string | null>(null);
+  const redoStackRef = useRef<Operation[]>([]);
+  const lastAppliedOperationsRef = useRef<Operation[] | null>(null);
 
   const [tool, setTool] = useState<Tool>('freehand');
   const thickness = DEFAULT_THICKNESS;
@@ -777,13 +779,21 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [isPanningActive, setIsPanningActive] = useState(false);
   const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null);
   const [detailPickerForOperationId, setDetailPickerForOperationId] = useState<string | null>(null);
+  const [redoCount, setRedoCount] = useState(0);
   const viewportRef = useRef<ViewportState>(viewport);
 
   const applyOperations = useCallback(
-    (updater: (operations: Operation[]) => Operation[]) => {
+    (updater: (operations: Operation[]) => Operation[], options: { preserveRedo?: boolean } = {}) => {
       const updatedOperations = updater(operationsRef.current);
       const nextOperations = renumberDimensionOperations(updatedOperations);
       operationsRef.current = nextOperations;
+      lastAppliedOperationsRef.current = nextOperations;
+      if (!options.preserveRedo) {
+        if (redoStackRef.current.length > 0) {
+          redoStackRef.current = [];
+          setRedoCount(0);
+        }
+      }
       const canvas = canvasRef.current;
       const metrics = metricsRef.current;
       if (canvas && metrics) {
@@ -801,7 +811,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       }
       onChange({ operations: nextOperations });
     },
-    [onChange],
+    [onChange, setRedoCount],
   );
 
   const updateViewport = useCallback((updater: (previous: ViewportState) => ViewportState) => {
@@ -994,6 +1004,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   useEffect(() => {
     operationsRef.current = value.operations;
     redraw();
+    if (lastAppliedOperationsRef.current !== value.operations) {
+      if (redoStackRef.current.length > 0) {
+        redoStackRef.current = [];
+        setRedoCount(0);
+      }
+    }
+    lastAppliedOperationsRef.current = value.operations;
   }, [value.operations, redraw]);
 
   useEffect(() => {
@@ -1453,7 +1470,24 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return;
     }
 
-    applyOperations((operations) => operations.slice(0, -1));
+    const operationToUndo = operationsRef.current[operationsRef.current.length - 1]!;
+    redoStackRef.current = [...redoStackRef.current, operationToUndo];
+    setRedoCount(redoStackRef.current.length);
+
+    applyOperations((operations) => operations.slice(0, -1), { preserveRedo: true });
+  }, [applyOperations]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) {
+      return;
+    }
+
+    const operationToRestore = redoStackRef.current[redoStackRef.current.length - 1]!;
+    const nextRedoStack = redoStackRef.current.slice(0, -1);
+    redoStackRef.current = nextRedoStack;
+    setRedoCount(nextRedoStack.length);
+
+    applyOperations((operations) => [...operations, operationToRestore], { preserveRedo: true });
   }, [applyOperations]);
 
   const handleClear = useCallback(() => {
@@ -1476,6 +1510,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   }, [applyOperations, selectedOperationId]);
 
   const canUndo = value.operations.length > 0;
+  const canRedo = redoCount > 0;
   const canClear = value.operations.length > 0;
   const canDeleteSelected = Boolean(selectedOperationId);
 
@@ -1524,9 +1559,23 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               type="button"
               onClick={handleUndo}
               disabled={!canUndo}
-              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Cofnij ostatni krok"
+              title="Cofnij ostatni krok"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cofnij
+              <span aria-hidden>↩️</span>
+              <span className="sr-only">Cofnij</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              aria-label="Przywróć cofnięty krok"
+              title="Przywróć cofnięty krok"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span aria-hidden>↪️</span>
+              <span className="sr-only">Przywróć</span>
             </button>
           </div>
         </div>
