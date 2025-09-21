@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 export type NormalizedPoint = { x: number; y: number };
 
@@ -171,12 +171,29 @@ function isDimensionOperation(operation: Operation): operation is DimensionOpera
   return operation.type === 'dimension';
 }
 
-const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: string }[] = [
+const SELECT_TOOL_ICON = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width="1em"
+    height="1em"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12.586 12.586 19 19" />
+    <path d="M3.688 3.037a.497.497 0 0 0-.651.651l6.5 15.999a.501.501 0 0 0 .947-.062l1.569-6.083a2 2 0 0 1 1.448-1.479l6.124-1.579a.5.5 0 0 0 .063-.947z" />
+  </svg>
+);
+
+const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: ReactNode }[] = [
   {
     value: 'select',
     label: 'Zaznacz',
     description: 'Wybierz element, aby go przesunąć lub usunąć.',
-    icon: '🖱️',
+    icon: SELECT_TOOL_ICON,
   },
   { value: 'freehand', label: 'Odręczny', description: 'Rysuj swobodnie palcem lub myszą.', icon: '✏️' },
   { value: 'line', label: 'Linia', description: 'Rysuj proste odcinki.', icon: '📐' },
