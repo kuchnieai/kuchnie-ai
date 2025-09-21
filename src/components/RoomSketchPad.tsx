@@ -1593,12 +1593,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Zoom: {zoomPercentage}%
-        </span>
-      </div>
-
       <div ref={containerRef} className={canvasContainerClassName}>
         <canvas
           ref={canvasRef}
@@ -1609,6 +1603,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         />
+        <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-slate-900/70 px-3 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-sm">
+          <span aria-hidden>Zoom: {zoomPercentage}%</span>
+          <span className="sr-only">Aktualny poziom powiększenia: {zoomPercentage} procent</span>
+        </div>
         <div
           aria-hidden
           className="pointer-events-auto absolute right-0 top-0 h-full w-5 border-l border-slate-200/70 touch-pan-y bg-gradient-to-l from-white via-white/70 to-transparent sm:w-6"
