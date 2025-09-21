@@ -995,7 +995,34 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const redoStackRef = useRef<Operation[]>([]);
   const lastAppliedOperationsRef = useRef<Operation[] | null>(null);
 
-  const [tool, setTool] = useState<Tool>('freehand');
+  const [tool, setToolState] = useState<Tool>('freehand');
+  const previousToolRef = useRef<Tool | null>(null);
+  const shouldRestoreToolRef = useRef(false);
+  const setTool = useCallback(
+    (nextTool: Tool, options?: { rememberPrevious?: boolean }) => {
+      setToolState((currentTool) => {
+        if (options?.rememberPrevious) {
+          previousToolRef.current = currentTool;
+          shouldRestoreToolRef.current = true;
+        } else {
+          shouldRestoreToolRef.current = false;
+        }
+        return nextTool;
+      });
+    },
+    [setToolState],
+  );
+  const restorePreviousTool = useCallback(() => {
+    if (!shouldRestoreToolRef.current) {
+      return;
+    }
+    shouldRestoreToolRef.current = false;
+    const previousTool = previousToolRef.current;
+    previousToolRef.current = null;
+    if (previousTool) {
+      setToolState(previousTool);
+    }
+  }, [setToolState]);
   const thickness = DEFAULT_THICKNESS;
   const [draft, setDraft] = useState<DraftOperation | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ scale: 1, offsetX: 0, offsetY: 0 });
@@ -1839,6 +1866,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         dragStateRef.current = null;
         if (tool === 'select' && dragState.hasMoved) {
           applyOperations((operations) => operations);
+          restorePreviousTool();
         }
         return;
       }
@@ -1850,7 +1878,15 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       pointerIdRef.current = null;
       commitDraft();
     },
-    [applyOperations, commitDraft, setIsPanningActive, showSelectButtonForOperation, thickness, tool],
+    [
+      applyOperations,
+      commitDraft,
+      restorePreviousTool,
+      setIsPanningActive,
+      showSelectButtonForOperation,
+      thickness,
+      tool,
+    ],
   );
 
   const handlePointerCancel = useCallback(
@@ -1934,7 +1970,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     applyOperations((operations) => operations.filter((operation) => operation.id !== idToDelete));
     setSelectedOperationId(null);
     dragStateRef.current = null;
-  }, [applyOperations, clearSelectButton, selectedOperationId]);
+    restorePreviousTool();
+  }, [applyOperations, clearSelectButton, restorePreviousTool, selectedOperationId]);
 
   const handleSelectButtonClick = useCallback(() => {
     const targetOperationId = selectButtonPosition?.operationId;
@@ -1942,7 +1979,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return;
     }
     clearSelectButton();
-    setTool('select');
+    setTool('select', { rememberPrevious: true });
     setSelectedOperationId(targetOperationId);
     updateDeleteButtonPosition(targetOperationId);
   }, [clearSelectButton, selectButtonPosition, setSelectedOperationId, setTool, updateDeleteButtonPosition]);
