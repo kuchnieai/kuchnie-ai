@@ -157,6 +157,15 @@ type DragState = {
   action: DragAction;
 };
 
+type MagnifierState = {
+  pointerId: number;
+  operationId: string;
+  endpoint: HandleHit;
+  clientX: number;
+  clientY: number;
+  point: NormalizedPoint;
+};
+
 type BoundingBox = {
   minX: number;
   minY: number;
@@ -181,6 +190,8 @@ const HIT_TEST_THRESHOLD_PX = 12;
 const HANDLE_VISUAL_RADIUS_PX = 8;
 const HANDLE_OUTLINE_WIDTH = 2;
 const HANDLE_HIT_THRESHOLD_PX = 14;
+const MAGNIFIER_SIZE = 144;
+const MAGNIFIER_ZOOM = 2.6;
 
 function isDimensionOperation(operation: Operation): operation is DimensionOperation {
   return operation.type === 'dimension';
@@ -982,6 +993,7 @@ function getNormalizedPoint(
 export default function RoomSketchPad({ value, onChange, className }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const magnifierCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const metricsRef = useRef<CanvasMetrics | null>(null);
   const operationsRef = useRef<Operation[]>(value.operations);
   const draftRef = useRef<DraftOperation | null>(null);
@@ -1007,6 +1019,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const [selectButtonPosition, setSelectButtonPosition] = useState<
     { operationId: string; left: number; top: number } | null
   >(null);
+  const [magnifierState, setMagnifierState] = useState<MagnifierState | null>(null);
   const viewportRef = useRef<ViewportState>(viewport);
 
   const updateDeleteButtonPosition = useCallback(
@@ -1071,6 +1084,38 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     }
     setSelectButtonPosition((previous) => (previous ? null : previous));
   }, []);
+
+  const hideMagnifier = useCallback(() => {
+    setMagnifierState((previous) => (previous ? null : previous));
+  }, []);
+
+  const updateMagnifier = useCallback(
+    (params: {
+      pointerId: number;
+      operationId: string;
+      endpoint: HandleHit;
+      clientX: number;
+      clientY: number;
+      point: NormalizedPoint;
+    }) => {
+      setMagnifierState((previous) => {
+        if (
+          previous &&
+          previous.pointerId === params.pointerId &&
+          previous.operationId === params.operationId &&
+          previous.endpoint === params.endpoint &&
+          Math.abs(previous.clientX - params.clientX) < 0.5 &&
+          Math.abs(previous.clientY - params.clientY) < 0.5 &&
+          Math.abs(previous.point.x - params.point.x) < 0.0001 &&
+          Math.abs(previous.point.y - params.point.y) < 0.0001
+        ) {
+          return previous;
+        }
+        return params;
+      });
+    },
+    [],
+  );
 
   const updateSelectButtonPosition = useCallback(
     (operationIdOverride?: string | null) => {
@@ -1232,6 +1277,56 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     }
     return 'crosshair';
   }, [isPanningActive, tool]);
+
+  const magnifierZoomLabel = useMemo(
+    () => (Number.isInteger(MAGNIFIER_ZOOM) ? `×${MAGNIFIER_ZOOM.toFixed(0)}` : `×${MAGNIFIER_ZOOM.toFixed(1)}`),
+    [],
+  );
+
+  const magnifierOverlayPosition = useMemo(() => {
+    if (!magnifierState) {
+      return null;
+    }
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) {
+      return null;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const pointerX = magnifierState.clientX - rect.left;
+    const pointerY = magnifierState.clientY - rect.top;
+    const size = MAGNIFIER_SIZE;
+    const halfSize = size / 2;
+    const offset = size * 0.75;
+    const containerWidth = container.clientWidth > 0 ? container.clientWidth : rect.width;
+    const containerHeight = container.clientHeight > 0 ? container.clientHeight : rect.height;
+
+    let left = pointerX + offset;
+    if (left + halfSize > containerWidth) {
+      left = pointerX - offset;
+    }
+    const minLeft = halfSize;
+    const maxLeft = containerWidth - halfSize;
+    if (maxLeft < minLeft) {
+      left = containerWidth / 2;
+    } else {
+      left = Math.min(Math.max(left, minLeft), maxLeft);
+    }
+
+    let top = pointerY - offset;
+    if (top - halfSize < 0) {
+      top = pointerY + offset;
+    }
+    const minTop = halfSize;
+    const maxTop = containerHeight - halfSize;
+    if (maxTop < minTop) {
+      top = containerHeight / 2;
+    } else {
+      top = Math.min(Math.max(top, minTop), maxTop);
+    }
+
+    return { left, top };
+  }, [magnifierState]);
 
   const handleDimensionMeasurementChange = useCallback(
     (id: string, measurement: string) => {
@@ -1411,6 +1506,94 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   }, [clearSelectButton, selectedOperationId]);
 
   useEffect(() => {
+    if (!selectedOperationId) {
+      hideMagnifier();
+    }
+  }, [hideMagnifier, selectedOperationId]);
+
+  useEffect(() => {
+    const magnifierCanvas = magnifierCanvasRef.current;
+    const canvas = canvasRef.current;
+    if (!magnifierCanvas || !canvas) {
+      return;
+    }
+
+    if (!magnifierState) {
+      const context = magnifierCanvas.getContext('2d');
+      if (context) {
+        context.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+      }
+      return;
+    }
+
+    const context = magnifierCanvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+
+    const metrics = metricsRef.current;
+    const devicePixelRatio =
+      metrics?.dpr ?? (typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1);
+    const targetSize = Math.max(Math.round(MAGNIFIER_SIZE * devicePixelRatio), 1);
+    if (magnifierCanvas.width !== targetSize) {
+      magnifierCanvas.width = targetSize;
+    }
+    if (magnifierCanvas.height !== targetSize) {
+      magnifierCanvas.height = targetSize;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      context.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+      return;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const pointerX = (magnifierState.clientX - rect.left) * scaleX;
+    const pointerY = (magnifierState.clientY - rect.top) * scaleY;
+    const sampleWidth = magnifierCanvas.width / MAGNIFIER_ZOOM;
+    const sampleHeight = magnifierCanvas.height / MAGNIFIER_ZOOM;
+    const sx = pointerX - sampleWidth / 2;
+    const sy = pointerY - sampleHeight / 2;
+
+    context.save();
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.clearRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
+    context.drawImage(
+      canvas,
+      sx,
+      sy,
+      sampleWidth,
+      sampleHeight,
+      0,
+      0,
+      magnifierCanvas.width,
+      magnifierCanvas.height,
+    );
+
+    const crosshairColor = 'rgba(15, 23, 42, 0.55)';
+    context.strokeStyle = crosshairColor;
+    context.lineWidth = Math.max(1, Math.round(1.6 * devicePixelRatio));
+    context.beginPath();
+    context.moveTo(magnifierCanvas.width / 2, 0);
+    context.lineTo(magnifierCanvas.width / 2, magnifierCanvas.height);
+    context.moveTo(0, magnifierCanvas.height / 2);
+    context.lineTo(magnifierCanvas.width, magnifierCanvas.height / 2);
+    context.stroke();
+
+    const dotRadius = Math.max(3, Math.round(2.5 * devicePixelRatio));
+    context.fillStyle = PRIMARY_STROKE_COLOR;
+    context.beginPath();
+    context.arc(magnifierCanvas.width / 2, magnifierCanvas.height / 2, dotRadius, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }, [magnifierState]);
+
+  useEffect(() => {
     if (detailPickerForOperationId && !value.operations.some((operation) => operation.id === detailPickerForOperationId)) {
       setDetailPickerForOperationId(null);
     }
@@ -1420,8 +1603,9 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     if (tool !== 'select') {
       setSelectedOperationId(null);
       dragStateRef.current = null;
+      hideMagnifier();
     }
-  }, [tool]);
+  }, [hideMagnifier, tool]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1512,7 +1696,8 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     }
     dragStateRef.current = null;
     textPointerRef.current = null;
-  }, [setDraft, setIsPanningActive]);
+    hideMagnifier();
+  }, [hideMagnifier, setDraft, setIsPanningActive]);
 
   const updatePinch = useCallback(() => {
     const pinchState = pinchStateRef.current;
@@ -1555,6 +1740,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return;
       }
 
+      hideMagnifier();
       pointerPositionsRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
 
       if (event.pointerType === 'touch' && pointerPositionsRef.current.size >= 2) {
@@ -1601,6 +1787,14 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 hasMoved: false,
                 action,
               };
+              updateMagnifier({
+                pointerId: event.pointerId,
+                operationId: selectedOperation.id,
+                endpoint: handleHit,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                point,
+              });
               setSelectedOperationId(selectedOperation.id);
               return;
             }
@@ -1633,6 +1827,17 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             hasMoved: false,
             action,
           };
+          if (action === 'resize-start' || action === 'resize-end') {
+            const endpoint: HandleHit = action === 'resize-start' ? 'start' : 'end';
+            updateMagnifier({
+              pointerId: event.pointerId,
+              operationId: operation.id,
+              endpoint,
+              clientX: event.clientX,
+              clientY: event.clientY,
+              point,
+            });
+          }
         }
         return;
       }
@@ -1688,7 +1893,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       setDraft({ type: 'line', thickness, start: point, end: point });
     },
-    [beginPinch, clearSelectButton, setIsPanningActive, thickness, tool],
+    [beginPinch, clearSelectButton, hideMagnifier, setIsPanningActive, thickness, tool, updateMagnifier],
   );
 
   const handlePointerMove = useCallback(
@@ -1724,6 +1929,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         event.preventDefault();
 
         if (dragState.action === 'move') {
+          hideMagnifier();
           const deltaX = point.x - dragState.startPoint.x;
           const deltaY = point.y - dragState.startPoint.y;
 
@@ -1737,6 +1943,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           );
         } else {
           if (!isStraightOperation(dragState.origin)) {
+            hideMagnifier();
             return;
           }
 
@@ -1745,6 +1952,14 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           operationsRef.current = operationsRef.current.map((operation) =>
             operation.id === dragState.operationId ? updatedOperation : operation,
           );
+          updateMagnifier({
+            pointerId: dragState.pointerId,
+            operationId: dragState.operationId,
+            endpoint,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            point,
+          });
         }
         dragStateRef.current = { ...dragState, hasMoved: true };
         redraw();
@@ -1789,12 +2004,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         return { ...previous, end: point };
       });
     },
-    [redraw, tool, updateDeleteButtonPosition, updatePinch, updateViewport],
+    [hideMagnifier, redraw, tool, updateDeleteButtonPosition, updateMagnifier, updatePinch, updateViewport],
   );
 
   const handlePointerUp = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       pointerPositionsRef.current.delete(event.pointerId);
+      hideMagnifier();
 
       const canvas = canvasRef.current;
       if (canvas) {
@@ -1850,12 +2066,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       pointerIdRef.current = null;
       commitDraft();
     },
-    [applyOperations, commitDraft, setIsPanningActive, showSelectButtonForOperation, thickness, tool],
+    [applyOperations, commitDraft, hideMagnifier, setIsPanningActive, showSelectButtonForOperation, thickness, tool],
   );
 
   const handlePointerCancel = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       pointerPositionsRef.current.delete(event.pointerId);
+      hideMagnifier();
 
       const canvas = canvasRef.current;
       if (canvas) {
@@ -1896,7 +2113,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         setDraft(null);
       }
     },
-    [redraw, setIsPanningActive, updateDeleteButtonPosition],
+    [hideMagnifier, redraw, setIsPanningActive, updateDeleteButtonPosition],
   );
 
   const handleUndo = useCallback(() => {
@@ -2017,6 +2234,29 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         />
+        {magnifierOverlayPosition && (
+          <div
+            className="pointer-events-none absolute z-30 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border-2 border-sky-400/90 bg-white/95 shadow-[0_14px_40px_-22px_rgba(2,132,199,0.6)] backdrop-blur-sm"
+            style={{
+              left: `${magnifierOverlayPosition.left}px`,
+              top: `${magnifierOverlayPosition.top}px`,
+              width: `${MAGNIFIER_SIZE}px`,
+              height: `${MAGNIFIER_SIZE}px`,
+            }}
+          >
+            <canvas
+              ref={magnifierCanvasRef}
+              className="pointer-events-none h-full w-full"
+              style={{ width: '100%', height: '100%' }}
+            />
+            <div className="pointer-events-none absolute inset-0 rounded-full border border-white/70 shadow-[inset_0_6px_12px_rgba(15,23,42,0.22)]" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-1 flex justify-center">
+              <span className="rounded-full bg-white/85 px-2 py-[1px] text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 shadow-sm">
+                {magnifierZoomLabel}
+              </span>
+            </div>
+          </div>
+        )}
         {selectButtonPosition && !selectedOperationId && (
           <button
             type="button"
