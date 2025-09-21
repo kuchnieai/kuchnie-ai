@@ -392,7 +392,7 @@ function drawOperation(
 
     const centerX = (start.x + end.x) / 2;
     const centerY = (start.y + end.y) / 2;
-    const label = `Ściana ${operation.label}`;
+    const label = `${operation.label}`;
     ctx.font = `${DIMENSION_LABEL_FONT_SIZE}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -749,7 +749,7 @@ function isPointNearOperation(point: NormalizedPoint, operation: Operation, metr
     const centerX = (start.x + end.x) / 2;
     const centerY = (start.y + end.y) / 2;
     const padding = 4;
-    const label = `Ściana ${operation.label}`;
+    const label = `${operation.label}`;
     const approximateWidth = Math.max(label.length * (DIMENSION_LABEL_FONT_SIZE * 0.6), DIMENSION_LABEL_FONT_SIZE);
     const halfWidth = (approximateWidth + padding * 2) / 2;
     const halfHeight = (DIMENSION_LABEL_FONT_SIZE + padding * 2) / 2;
