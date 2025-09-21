@@ -85,7 +85,7 @@ type Props = {
 
 export type RoomSketchPadProps = Props;
 
-const THICKNESS_PRESETS = [2, 4, 6, 10] as const;
+const DEFAULT_THICKNESS = 4;
 const PRIMARY_STROKE_COLOR = '#0f172a';
 const DIMENSION_STROKE_COLOR = '#ef4444';
 const DIMENSION_LINE_WIDTH = 2;
@@ -699,7 +699,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const selectedOperationIdRef = useRef<string | null>(null);
 
   const [tool, setTool] = useState<Tool>('freehand');
-  const [thickness, setThickness] = useState<number>(THICKNESS_PRESETS[1]);
+  const thickness = DEFAULT_THICKNESS;
   const [draft, setDraft] = useState<DraftOperation | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ scale: 1, offsetX: 0, offsetY: 0 });
   const [isPanningActive, setIsPanningActive] = useState(false);
@@ -1493,29 +1493,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             );
           })}
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-slate-600">Grubość linii:</span>
-        {THICKNESS_PRESETS.map((preset) => {
-          const isActive = thickness === preset;
-          return (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => setThickness(preset)}
-              aria-pressed={isActive}
-              disabled={tool === 'dimension' || tool === 'pan' || tool === 'select'}
-              className={`rounded-full border px-3 py-1 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-60 ${
-                isActive
-                  ? 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
-              }`}
-            >
-              {preset}px
-            </button>
-          );
-        })}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
