@@ -565,16 +565,6 @@ export default function MyKitchenPage() {
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
             Projekt na wymiar
           </h1>
-          <p className="mt-4 text-lg text-slate-600">
-            Potrzebujemy przybliżonych wymiarów twojej kuchni, aby przygotować dla Ciebie projekt. Masz 3
-            możliwości:
-            <br />
-            1. Zamów fachowca 250zł na terenie całej polski.
-            <br />
-            2. Masz już wymiary wystarczy, że nam je prześlesz.
-            <br />
-            3. Narysuj przybliżone wymiary w naszym notatniku.
-          </p>
           <p className="mt-2 text-sm text-slate-500">
             Ta karta to Twój osobisty moodboard – możesz do niej wracać podczas rozmów z projektantem lub tworzenia
             wizualizacji w Kuchnie AI.
