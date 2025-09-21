@@ -392,7 +392,7 @@ function drawOperation(
 
     const centerX = (start.x + end.x) / 2;
     const centerY = (start.y + end.y) / 2;
-    const label = `${operation.label}`;
+    const label = `Ściana ${operation.label}`;
     ctx.font = `${DIMENSION_LABEL_FONT_SIZE}px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -749,7 +749,7 @@ function isPointNearOperation(point: NormalizedPoint, operation: Operation, metr
     const centerX = (start.x + end.x) / 2;
     const centerY = (start.y + end.y) / 2;
     const padding = 4;
-    const label = `${operation.label}`;
+    const label = `Ściana ${operation.label}`;
     const approximateWidth = Math.max(label.length * (DIMENSION_LABEL_FONT_SIZE * 0.6), DIMENSION_LABEL_FONT_SIZE);
     const halfWidth = (approximateWidth + padding * 2) / 2;
     const halfHeight = (DIMENSION_LABEL_FONT_SIZE + padding * 2) / 2;
@@ -1792,7 +1792,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                   return (
                     <Fragment key={operation.id}>
                       <tr className={isSelected ? 'bg-sky-50/70' : undefined} aria-selected={isSelected}>
-                        <td className="px-3 py-2 font-medium text-slate-900">#{operation.label}</td>
+                        <td className="px-3 py-2 font-medium text-slate-900">Ściana {operation.label}</td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
                             <input
@@ -1816,7 +1816,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                                 onClick={() => handleToggleDetailPicker(operation.id)}
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
                                 aria-expanded={isPickerOpen}
-                                aria-label={`Dodaj element do wymiaru #${operation.label}`}
+                                aria-label={`Dodaj element do wymiaru Ściana ${operation.label}`}
                               >
                                 <span aria-hidden>＋</span>
                               </button>
