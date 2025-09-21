@@ -1507,6 +1507,17 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={!canClear}
+              aria-label="Wyczyść szkic"
+              title="Wyczyść szkic"
+              className={`${getToolButtonClassName(false)} disabled:cursor-not-allowed disabled:opacity-40`}
+            >
+              <span aria-hidden>🗑️</span>
+              <span className="sr-only">Wyczyść szkic</span>
+            </button>
           </div>
           <div className="flex flex-wrap gap-2 sm:ml-2">
             <button
@@ -1516,14 +1527,6 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cofnij
-            </button>
-            <button
-              type="button"
-              onClick={handleClear}
-              disabled={!canClear}
-              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Wyczyść szkic
             </button>
           </div>
         </div>
