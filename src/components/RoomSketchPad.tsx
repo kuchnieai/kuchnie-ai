@@ -796,6 +796,21 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     [],
   );
 
+  const getFullscreenActionButtonClassName = useCallback(
+    (variant: 'default' | 'primary' | 'danger' = 'default') => {
+      const base =
+        'flex h-10 w-10 items-center justify-center rounded-full border text-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50';
+      if (variant === 'primary') {
+        return `${base} border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]`;
+      }
+      if (variant === 'danger') {
+        return `${base} border-rose-200 bg-white text-rose-600 hover:border-rose-300 hover:bg-rose-50`;
+      }
+      return `${base} border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50`;
+    },
+    [],
+  );
+
   const canvasContainerClassName = useMemo(() => {
     const base = 'relative w-full overflow-hidden bg-white transition-[border-radius]';
     if (fullscreenMode === 'manual') {
@@ -1591,51 +1606,64 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
               </div>
             </div>
             <div className="pointer-events-none absolute right-3 top-3 z-10 sm:right-4 sm:top-4">
-              <div className="pointer-events-auto flex flex-col items-stretch gap-2 rounded-2xl bg-white/90 p-2 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
-                <button
-                  type="button"
-                  onClick={handleExitFullscreen}
-                  className="w-full rounded-full border border-sky-400 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-                >
-                  Zamknij pełny ekran
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetViewport}
-                  disabled={isViewportDefault}
-                  className={`w-full rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-50 ${
-                    isViewportDefault
-                      ? 'border-slate-200 bg-white text-slate-600 hover:border-sky-200 hover:bg-sky-50'
-                      : 'border-sky-400 bg-sky-50 text-sky-900 shadow-[0_10px_30px_-18px_rgba(14,116,144,0.6)]'
-                  }`}
-                >
-                  Wyśrodkuj
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUndo}
-                  disabled={!canUndo}
-                  className="w-full rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Cofnij
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  disabled={!canClear}
-                  className="w-full rounded-full border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Wyczyść szkic
-                </button>
-                {canDeleteSelected && (
+              <div className="pointer-events-auto rounded-2xl bg-white/90 p-2 shadow-lg ring-1 ring-slate-200 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
-                    onClick={handleDeleteSelected}
-                    className="w-full rounded-full border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
+                    onClick={handleExitFullscreen}
+                    className={getFullscreenActionButtonClassName('primary')}
+                    aria-label="Zamknij pełny ekran"
+                    title="Zamknij pełny ekran"
                   >
-                    Usuń zaznaczenie
+                    <span aria-hidden>🗗</span>
+                    <span className="sr-only">Zamknij pełny ekran</span>
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={handleResetViewport}
+                    disabled={isViewportDefault}
+                    className={getFullscreenActionButtonClassName(isViewportDefault ? 'default' : 'primary')}
+                    aria-label="Wyśrodkuj"
+                    title="Wyśrodkuj"
+                  >
+                    <span aria-hidden>🎯</span>
+                    <span className="sr-only">Wyśrodkuj</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUndo}
+                    disabled={!canUndo}
+                    className={getFullscreenActionButtonClassName()}
+                    aria-label="Cofnij"
+                    title="Cofnij"
+                  >
+                    <span aria-hidden>↩️</span>
+                    <span className="sr-only">Cofnij</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    disabled={!canClear}
+                    className={getFullscreenActionButtonClassName('danger')}
+                    aria-label="Wyczyść szkic"
+                    title="Wyczyść szkic"
+                  >
+                    <span aria-hidden>🧹</span>
+                    <span className="sr-only">Wyczyść szkic</span>
+                  </button>
+                  {canDeleteSelected && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteSelected}
+                      className={getFullscreenActionButtonClassName('danger')}
+                      aria-label="Usuń zaznaczenie"
+                      title="Usuń zaznaczenie"
+                    >
+                      <span aria-hidden>🗑️</span>
+                      <span className="sr-only">Usuń zaznaczenie</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             <div className="pointer-events-none absolute left-3 bottom-3 z-10 sm:left-4 sm:bottom-4">
