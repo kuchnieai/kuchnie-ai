@@ -1545,6 +1545,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerCancel}
         />
+        <div
+          aria-hidden
+          className="pointer-events-auto absolute right-0 top-0 h-full w-5 border-l border-slate-200/70 touch-pan-y bg-gradient-to-l from-white via-white/70 to-transparent sm:w-6"
+        />
       </div>
 
       {dimensionOperations.length > 0 && (
