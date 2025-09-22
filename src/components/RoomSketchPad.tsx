@@ -15,10 +15,13 @@ export type DimensionDetailField =
 
 export type DimensionDetailType = 'window' | 'radiator' | 'water' | 'powerCable' | 'socket' | 'ventilation';
 
+export type WallOffsetDirection = 'left' | 'right';
+
 export type DimensionDetail = {
   id: string;
   type: DimensionDetailType;
   values: Partial<Record<DimensionDetailField, string>>;
+  wallOffsetDirection?: WallOffsetDirection;
 };
 
 export type DimensionOperation = {
@@ -1593,6 +1596,43 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     [applyOperations],
   );
 
+  const handleDimensionDetailWallOffsetDirectionChange = useCallback(
+    (operationId: string, detailId: string, nextDirection: WallOffsetDirection | null) => {
+      applyOperations((operations) =>
+        operations.map((operation) => {
+          if (operation.type !== 'dimension' || operation.id !== operationId) {
+            return operation;
+          }
+
+          let hasChanged = false;
+          const nextDetails = operation.details.map((detail) => {
+            if (detail.id !== detailId) {
+              return detail;
+            }
+
+            const normalizedDirection = nextDirection ?? undefined;
+            if (detail.wallOffsetDirection === normalizedDirection) {
+              return detail;
+            }
+
+            hasChanged = true;
+            return {
+              ...detail,
+              wallOffsetDirection: normalizedDirection,
+            };
+          });
+
+          if (!hasChanged) {
+            return operation;
+          }
+
+          return { ...operation, details: nextDetails };
+        }),
+      );
+    },
+    [applyOperations],
+  );
+
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     const metrics = metricsRef.current;
@@ -2589,16 +2629,35 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                                       </div>
                                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                         {definition.fields.map((field) => {
-                                          const fieldContainerClassName = `flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500${
+                                          const fieldId = `${operation.id}-${detail.id}-${field.name}`;
+                                          const fieldContainerClassName = `flex flex-col gap-1${
                                             field.inputType === 'textarea' ? ' sm:col-span-2' : ''
                                           }`;
+                                          const labelClassName =
+                                            'text-xs font-medium uppercase tracking-wide text-slate-500';
                                           const fieldValue = detail.values[field.name] ?? '';
+                                          const isWallOffsetField = field.name === 'wallOffset';
+                                          const wallOffsetDirection = detail.wallOffsetDirection;
+                                          const baseInputClassName =
+                                            'w-full rounded-lg px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2';
+                                          const defaultBorderClassName =
+                                            'border border-slate-200 focus:border-sky-300 focus:ring-sky-200';
+                                          const invalidBorderClassName =
+                                            'border border-rose-400 focus:border-rose-400 focus:ring-rose-200';
+                                          const inputClassName = `${baseInputClassName} ${
+                                            isWallOffsetField && !wallOffsetDirection
+                                              ? invalidBorderClassName
+                                              : defaultBorderClassName
+                                          }`;
 
                                           return (
-                                            <label key={field.name} className={fieldContainerClassName}>
-                                              <span>{field.label}</span>
+                                            <div key={field.name} className={fieldContainerClassName}>
+                                              <label htmlFor={fieldId} className={labelClassName}>
+                                                {field.label}
+                                              </label>
                                               {field.inputType === 'textarea' ? (
                                                 <textarea
+                                                  id={fieldId}
                                                   rows={4}
                                                   value={fieldValue}
                                                   onChange={(event) =>
@@ -2609,10 +2668,68 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                                                       event.target.value,
                                                     )
                                                   }
-                                                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                                                  className={inputClassName}
                                                 />
+                                              ) : isWallOffsetField ? (
+                                                <div className="flex items-center gap-2">
+                                                  <input
+                                                    id={fieldId}
+                                                    type="text"
+                                                    value={fieldValue}
+                                                    onChange={(event) =>
+                                                      handleDimensionDetailFieldChange(
+                                                        operation.id,
+                                                        detail.id,
+                                                        field.name,
+                                                        event.target.value,
+                                                      )
+                                                    }
+                                                    className={inputClassName}
+                                                    placeholder="np. 120"
+                                                    aria-invalid={!wallOffsetDirection}
+                                                  />
+                                                  <div className="flex items-center gap-1">
+                                                    {(['left', 'right'] as const).map((direction) => {
+                                                      const isActive = wallOffsetDirection === direction;
+                                                      const buttonClassName = `inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2${
+                                                        isActive
+                                                          ? ' border-sky-500 bg-sky-500 text-white hover:border-sky-600 hover:bg-sky-600'
+                                                          : ' border-slate-200 text-slate-600 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700'
+                                                      }`;
+
+                                                      return (
+                                                        <button
+                                                          key={direction}
+                                                          type="button"
+                                                          onClick={() =>
+                                                            handleDimensionDetailWallOffsetDirectionChange(
+                                                              operation.id,
+                                                              detail.id,
+                                                              isActive ? null : direction,
+                                                            )
+                                                          }
+                                                          className={buttonClassName}
+                                                          aria-pressed={isActive}
+                                                          aria-label={
+                                                            direction === 'left'
+                                                              ? 'Wymiar mierzony od lewej ściany'
+                                                              : 'Wymiar mierzony od prawej ściany'
+                                                          }
+                                                          title={
+                                                            direction === 'left'
+                                                              ? 'Od lewej ściany'
+                                                              : 'Od prawej ściany'
+                                                          }
+                                                        >
+                                                          {direction === 'left' ? 'L' : 'P'}
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
                                               ) : (
                                                 <input
+                                                  id={fieldId}
                                                   type="text"
                                                   value={fieldValue}
                                                   onChange={(event) =>
@@ -2623,11 +2740,11 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                                                       event.target.value,
                                                     )
                                                   }
-                                                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                                                  className={inputClassName}
                                                   placeholder="np. 120"
                                                 />
                                               )}
-                                            </label>
+                                            </div>
                                           );
                                         })}
                                       </div>
