@@ -263,6 +263,30 @@ function sanitizeNormalized(value: number): number {
   return value;
 }
 
+function sanitizeNormalizedPoint(point: NormalizedPoint): NormalizedPoint {
+  return {
+    x: sanitizeNormalized(point.x),
+    y: sanitizeNormalized(point.y),
+  };
+}
+
+function snapNormalizedPointToGrid(point: NormalizedPoint, metrics: CanvasMetrics | null): NormalizedPoint {
+  if (!metrics || metrics.width <= 0 || metrics.height <= 0) {
+    return sanitizeNormalizedPoint(point);
+  }
+
+  const worldX = point.x * metrics.width;
+  const worldY = point.y * metrics.height;
+
+  const snappedWorldX = Math.round(worldX / GRID_SPACING) * GRID_SPACING;
+  const snappedWorldY = Math.round(worldY / GRID_SPACING) * GRID_SPACING;
+
+  return {
+    x: sanitizeNormalized(snappedWorldX / metrics.width),
+    y: sanitizeNormalized(snappedWorldY / metrics.height),
+  };
+}
+
 function clampScale(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
     return 1;
@@ -579,7 +603,12 @@ function translateNormalizedPoint(
   };
 }
 
-function translateOperation(operation: Operation, deltaX: number, deltaY: number): Operation {
+function translateOperation(
+  operation: Operation,
+  deltaX: number,
+  deltaY: number,
+  metrics: CanvasMetrics | null,
+): Operation {
   if (operation.type === 'freehand') {
     return {
       ...operation,
@@ -588,18 +617,22 @@ function translateOperation(operation: Operation, deltaX: number, deltaY: number
   }
 
   if (operation.type === 'line') {
+    const start = translateNormalizedPoint(operation.start, deltaX, deltaY);
+    const end = translateNormalizedPoint(operation.end, deltaX, deltaY);
     return {
       ...operation,
-      start: translateNormalizedPoint(operation.start, deltaX, deltaY),
-      end: translateNormalizedPoint(operation.end, deltaX, deltaY),
+      start: snapNormalizedPointToGrid(start, metrics),
+      end: snapNormalizedPointToGrid(end, metrics),
     };
   }
 
   if (operation.type === 'dimension') {
+    const start = translateNormalizedPoint(operation.start, deltaX, deltaY);
+    const end = translateNormalizedPoint(operation.end, deltaX, deltaY);
     return {
       ...operation,
-      start: translateNormalizedPoint(operation.start, deltaX, deltaY),
-      end: translateNormalizedPoint(operation.end, deltaX, deltaY),
+      start: snapNormalizedPointToGrid(start, metrics),
+      end: snapNormalizedPointToGrid(end, metrics),
     };
   }
 
@@ -847,11 +880,9 @@ function updateOperationEndpoint(
   operation: Operation,
   endpoint: HandleHit,
   point: NormalizedPoint,
+  metrics: CanvasMetrics | null,
 ): Operation {
-  const sanitizedPoint = {
-    x: sanitizeNormalized(point.x),
-    y: sanitizeNormalized(point.y),
-  };
+  const sanitizedPoint = snapNormalizedPointToGrid(point, metrics);
 
   if (operation.type === 'line') {
     if (endpoint === 'start') {
@@ -907,7 +938,11 @@ function thicknessToFontSize(thickness: number): number {
   return Math.round(thickness * 6);
 }
 
-function convertDraftToOperation(draft: DraftOperation, operations: Operation[]): Operation | null {
+function convertDraftToOperation(
+  draft: DraftOperation,
+  operations: Operation[],
+  metrics: CanvasMetrics | null,
+): Operation | null {
   const id = createOperationId();
 
   if (draft.type === 'freehand') {
@@ -919,13 +954,13 @@ function convertDraftToOperation(draft: DraftOperation, operations: Operation[])
       id,
       type: 'freehand',
       thickness: draft.thickness,
-      points: points.map((point) => ({ x: sanitizeNormalized(point.x), y: sanitizeNormalized(point.y) })),
+      points: points.map((point) => sanitizeNormalizedPoint(point)),
     };
   }
 
   if (draft.type === 'dimension') {
-    const start = { x: sanitizeNormalized(draft.start.x), y: sanitizeNormalized(draft.start.y) };
-    const end = { x: sanitizeNormalized(draft.end.x), y: sanitizeNormalized(draft.end.y) };
+    const start = snapNormalizedPointToGrid(draft.start, metrics);
+    const end = snapNormalizedPointToGrid(draft.end, metrics);
 
     if (start.x === end.x && start.y === end.y) {
       return null;
@@ -948,8 +983,8 @@ function convertDraftToOperation(draft: DraftOperation, operations: Operation[])
     };
   }
 
-  const start = { x: sanitizeNormalized(draft.start.x), y: sanitizeNormalized(draft.start.y) };
-  const end = { x: sanitizeNormalized(draft.end.x), y: sanitizeNormalized(draft.end.y) };
+  const start = snapNormalizedPointToGrid(draft.start, metrics);
+  const end = snapNormalizedPointToGrid(draft.end, metrics);
 
   if (start.x === end.x && start.y === end.y) {
     return {
@@ -1641,7 +1676,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return;
     }
 
-    const operation = convertDraftToOperation(currentDraft, operationsRef.current);
+    const operation = convertDraftToOperation(currentDraft, operationsRef.current, metricsRef.current);
     setDraft(null);
 
     if (!operation) {
@@ -1873,6 +1908,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       }
 
       const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
+      const metrics = metricsRef.current;
 
       if (tool === 'freehand') {
         setDraft({ type: 'freehand', thickness, points: [point] });
@@ -1881,11 +1917,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       if (tool === 'dimension') {
         const currentDimensions = operationsRef.current.filter(isDimensionOperation);
-        setDraft({ type: 'dimension', label: currentDimensions.length + 1, start: point, end: point });
+        const snappedPoint = snapNormalizedPointToGrid(point, metrics);
+        setDraft({ type: 'dimension', label: currentDimensions.length + 1, start: snappedPoint, end: snappedPoint });
         return;
       }
 
-      setDraft({ type: 'line', thickness, start: point, end: point });
+      const snappedPoint = snapNormalizedPointToGrid(point, metrics);
+      setDraft({ type: 'line', thickness, start: snappedPoint, end: snappedPoint });
     },
     [beginPinch, clearSelectButton, hideMagnifier, setIsPanningActive, thickness, tool, updateMagnifier],
   );
@@ -1931,7 +1969,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
             return;
           }
 
-          const translatedOperation = translateOperation(dragState.origin, deltaX, deltaY);
+          const translatedOperation = translateOperation(
+            dragState.origin,
+            deltaX,
+            deltaY,
+            metricsRef.current,
+          );
           operationsRef.current = operationsRef.current.map((operation) =>
             operation.id === dragState.operationId ? translatedOperation : operation,
           );
@@ -1942,7 +1985,12 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           }
 
           const endpoint: HandleHit = dragState.action === 'resize-start' ? 'start' : 'end';
-          const updatedOperation = updateOperationEndpoint(dragState.origin, endpoint, point);
+          const updatedOperation = updateOperationEndpoint(
+            dragState.origin,
+            endpoint,
+            point,
+            metricsRef.current,
+          );
           operationsRef.current = operationsRef.current.map((operation) =>
             operation.id === dragState.operationId ? updatedOperation : operation,
           );
@@ -1982,6 +2030,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       const rect = canvas.getBoundingClientRect();
       const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
 
+      const metrics = metricsRef.current;
       setDraft((previous) => {
         if (!previous) {
           return previous;
@@ -1991,11 +2040,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
           return { ...previous, points: [...previous.points, point] };
         }
 
+        const snappedPoint = snapNormalizedPointToGrid(point, metrics);
+
         if (previous.type === 'dimension') {
-          return { ...previous, end: point };
+          return { ...previous, end: snappedPoint };
         }
 
-        return { ...previous, end: point };
+        return { ...previous, end: snappedPoint };
       });
     },
     [hideMagnifier, redraw, tool, updateDeleteButtonPosition, updateMagnifier, updatePinch, updateViewport],
