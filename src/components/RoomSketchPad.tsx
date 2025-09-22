@@ -240,6 +240,7 @@ const TOOL_CONFIG: { value: Tool; label: string; description: string; icon: Reac
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
 const GRID_SPACING = 24;
+const AUTO_DIMENSION_OFFSET_PX = GRID_SPACING;
 
 function sanitizeOffset(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
@@ -267,6 +268,13 @@ function sanitizeNormalizedPoint(point: NormalizedPoint): NormalizedPoint {
   return {
     x: sanitizeNormalized(point.x),
     y: sanitizeNormalized(point.y),
+  };
+}
+
+function clampNormalizedPoint(point: NormalizedPoint): NormalizedPoint {
+  return {
+    x: Math.min(Math.max(point.x, 0), 1),
+    y: Math.min(Math.max(point.y, 0), 1),
   };
 }
 
@@ -1004,6 +1012,106 @@ function convertDraftToOperation(
   };
 }
 
+function createAutoDimensionForLine(
+  line: Extract<Operation, { type: 'line' }>,
+  metrics: CanvasMetrics | null,
+  operations: Operation[],
+): DimensionOperation | null {
+  if (!metrics) {
+    return null;
+  }
+
+  const startWorld = denormalizePoint(line.start, metrics);
+  const endWorld = denormalizePoint(line.end, metrics);
+
+  const dx = endWorld.x - startWorld.x;
+  const dy = endWorld.y - startWorld.y;
+  const length = Math.hypot(dx, dy);
+
+  if (!Number.isFinite(length) || length === 0) {
+    return null;
+  }
+
+  type Candidate = {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    center: { x: number; y: number };
+  };
+
+  const offsetDistance = AUTO_DIMENSION_OFFSET_PX;
+  const normals = [
+    { x: dy / length, y: -dx / length },
+    { x: -dy / length, y: dx / length },
+  ];
+
+  const candidates: Candidate[] = normals
+    .map((normal) => {
+      if (!Number.isFinite(normal.x) || !Number.isFinite(normal.y)) {
+        return null;
+      }
+      const offsetX = normal.x * offsetDistance;
+      const offsetY = normal.y * offsetDistance;
+      const start = { x: startWorld.x + offsetX, y: startWorld.y + offsetY };
+      const end = { x: endWorld.x + offsetX, y: endWorld.y + offsetY };
+      return {
+        start,
+        end,
+        center: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+      };
+    })
+    .filter((candidate): candidate is Candidate => candidate !== null);
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  candidates.sort((a, b) => {
+    const deltaY = a.center.y - b.center.y;
+    if (Math.abs(deltaY) > 1e-6) {
+      return deltaY;
+    }
+    const deltaX = a.center.x - b.center.x;
+    if (Math.abs(deltaX) > 1e-6) {
+      return deltaX;
+    }
+    return 0;
+  });
+
+  const { start: offsetStart, end: offsetEnd } = candidates[0];
+
+  const normalizedStart = clampNormalizedPoint(
+    sanitizeNormalizedPoint({
+      x: offsetStart.x / metrics.width,
+      y: offsetStart.y / metrics.height,
+    }),
+  );
+  const normalizedEnd = clampNormalizedPoint(
+    sanitizeNormalizedPoint({
+      x: offsetEnd.x / metrics.width,
+      y: offsetEnd.y / metrics.height,
+    }),
+  );
+
+  if (
+    normalizedStart.x === normalizedEnd.x &&
+    normalizedStart.y === normalizedEnd.y
+  ) {
+    return null;
+  }
+
+  const existingDimensions = operations.filter(isDimensionOperation);
+
+  return {
+    id: createOperationId(),
+    type: 'dimension',
+    start: normalizedStart,
+    end: normalizedEnd,
+    label: existingDimensions.length + 1,
+    measurement: '',
+    details: [],
+  };
+}
+
 function getNormalizedPoint(
   clientX: number,
   clientY: number,
@@ -1687,7 +1795,20 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
       return;
     }
 
-    applyOperations((operations) => [...operations, operation]);
+    const operationsToAdd: Operation[] = [operation];
+
+    if (operation.type === 'line') {
+      const autoDimension = createAutoDimensionForLine(
+        operation,
+        metricsRef.current,
+        operationsRef.current,
+      );
+      if (autoDimension) {
+        operationsToAdd.push(autoDimension);
+      }
+    }
+
+    applyOperations((operations) => [...operations, ...operationsToAdd]);
     showSelectButtonForOperation(operation.id);
   }, [applyOperations, showSelectButtonForOperation]);
 
