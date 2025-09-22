@@ -2644,8 +2644,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                                             'border border-slate-200 focus:border-sky-300 focus:ring-sky-200';
                                           const invalidBorderClassName =
                                             'border border-rose-400 focus:border-rose-400 focus:ring-rose-200';
+                                          const shouldHighlightWallOffsetDirection =
+                                            isWallOffsetField && fieldValue.trim() !== '' && !wallOffsetDirection;
                                           const inputClassName = `${baseInputClassName} ${
-                                            isWallOffsetField && !wallOffsetDirection
+                                            shouldHighlightWallOffsetDirection
                                               ? invalidBorderClassName
                                               : defaultBorderClassName
                                           }`;
@@ -2686,7 +2688,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                                                     }
                                                     className={inputClassName}
                                                     placeholder="np. 120"
-                                                    aria-invalid={!wallOffsetDirection}
+                                                    aria-invalid={shouldHighlightWallOffsetDirection}
                                                   />
                                                   <div className="flex items-center gap-1">
                                                     {(['left', 'right'] as const).map((direction) => {
