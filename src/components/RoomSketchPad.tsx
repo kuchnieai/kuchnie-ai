@@ -5,7 +5,13 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 export type NormalizedPoint = { x: number; y: number };
 
-export type DimensionDetailField = 'width' | 'height' | 'floorLevel' | 'depth' | 'wallOffset';
+export type DimensionDetailField =
+  | 'width'
+  | 'height'
+  | 'floorLevel'
+  | 'depth'
+  | 'wallOffset'
+  | 'description';
 
 export type DimensionDetailType = 'window' | 'radiator' | 'water' | 'powerCable' | 'socket' | 'ventilation';
 
@@ -35,7 +41,7 @@ export type RoomSketchValue = { operations: Operation[] };
 export type DimensionDetailDefinition = {
   type: DimensionDetailType;
   label: string;
-  fields: { name: DimensionDetailField; label: string }[];
+  fields: { name: DimensionDetailField; label: string; inputType?: 'textarea' }[];
 };
 
 export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
@@ -48,6 +54,7 @@ export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
       { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
       { name: 'depth', label: 'Głębokość' },
       { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+      { name: 'description', label: 'Opis', inputType: 'textarea' },
     ],
   },
   {
@@ -59,6 +66,7 @@ export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
       { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
       { name: 'depth', label: 'Głębokość' },
       { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+      { name: 'description', label: 'Opis', inputType: 'textarea' },
     ],
   },
   {
@@ -70,6 +78,7 @@ export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
       { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
       { name: 'depth', label: 'Głębokość' },
       { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+      { name: 'description', label: 'Opis', inputType: 'textarea' },
     ],
   },
   {
@@ -78,6 +87,7 @@ export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
     fields: [
       { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
       { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+      { name: 'description', label: 'Opis', inputType: 'textarea' },
     ],
   },
   {
@@ -86,6 +96,7 @@ export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
     fields: [
       { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
       { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+      { name: 'description', label: 'Opis', inputType: 'textarea' },
     ],
   },
   {
@@ -97,6 +108,7 @@ export const DIMENSION_DETAIL_DEFINITIONS: DimensionDetailDefinition[] = [
       { name: 'floorLevel', label: 'Poziom od podłogi z płytką' },
       { name: 'depth', label: 'Głębokość' },
       { name: 'wallOffset', label: 'Wymiar od lewej/prawej ściany' },
+      { name: 'description', label: 'Opis', inputType: 'textarea' },
     ],
   },
 ];
@@ -2576,28 +2588,48 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                                         </button>
                                       </div>
                                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                        {definition.fields.map((field) => (
-                                          <label
-                                            key={field.name}
-                                            className="flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500"
-                                          >
-                                            <span>{field.label}</span>
-                                            <input
-                                              type="text"
-                                              value={detail.values[field.name] ?? ''}
-                                              onChange={(event) =>
-                                                handleDimensionDetailFieldChange(
-                                                  operation.id,
-                                                  detail.id,
-                                                  field.name,
-                                                  event.target.value,
-                                                )
-                                              }
-                                              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                                              placeholder="np. 120"
-                                            />
-                                          </label>
-                                        ))}
+                                        {definition.fields.map((field) => {
+                                          const fieldContainerClassName = `flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500${
+                                            field.inputType === 'textarea' ? ' sm:col-span-2' : ''
+                                          }`;
+                                          const fieldValue = detail.values[field.name] ?? '';
+
+                                          return (
+                                            <label key={field.name} className={fieldContainerClassName}>
+                                              <span>{field.label}</span>
+                                              {field.inputType === 'textarea' ? (
+                                                <textarea
+                                                  rows={4}
+                                                  value={fieldValue}
+                                                  onChange={(event) =>
+                                                    handleDimensionDetailFieldChange(
+                                                      operation.id,
+                                                      detail.id,
+                                                      field.name,
+                                                      event.target.value,
+                                                    )
+                                                  }
+                                                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                                                />
+                                              ) : (
+                                                <input
+                                                  type="text"
+                                                  value={fieldValue}
+                                                  onChange={(event) =>
+                                                    handleDimensionDetailFieldChange(
+                                                      operation.id,
+                                                      detail.id,
+                                                      field.name,
+                                                      event.target.value,
+                                                    )
+                                                  }
+                                                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                                                  placeholder="np. 120"
+                                                />
+                                              )}
+                                            </label>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   );
