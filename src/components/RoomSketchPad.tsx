@@ -1001,7 +1001,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const redoStackRef = useRef<Operation[]>([]);
   const lastAppliedOperationsRef = useRef<Operation[] | null>(null);
 
-  const [tool, setTool] = useState<Tool>('freehand');
+  const [tool, setTool] = useState<Tool | null>(null);
   const thickness = DEFAULT_THICKNESS;
   const [draft, setDraft] = useState<DraftOperation | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ scale: 1, offsetX: 0, offsetY: 0 });
@@ -1260,6 +1260,9 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
   const zoomPercentage = useMemo(() => Math.round(viewport.scale * 100), [viewport.scale]);
 
   const canvasCursor = useMemo(() => {
+    if (!tool) {
+      return 'default';
+    }
     if (tool === 'text') {
       return 'text';
     }
@@ -1271,6 +1274,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
     }
     return 'crosshair';
   }, [isPanningActive, tool]);
+  const canvasTouchAction = tool ? 'none' : 'auto';
 
   const magnifierZoomLabel = useMemo(
     () => (Number.isInteger(MAGNIFIER_ZOOM) ? `×${MAGNIFIER_ZOOM.toFixed(0)}` : `×${MAGNIFIER_ZOOM.toFixed(1)}`),
@@ -1749,6 +1753,10 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       const rect = canvas.getBoundingClientRect();
 
+      if (!tool) {
+        return;
+      }
+
       if (tool === 'select') {
         const point = getNormalizedPoint(event.clientX, event.clientY, rect, viewportRef.current);
         const metrics = metricsRef.current;
@@ -2179,7 +2187,11 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
                 <button
                   key={toolOption.value}
                   type="button"
-                  onClick={() => setTool(toolOption.value)}
+                  onClick={() =>
+                    setTool((previousTool) =>
+                      previousTool === toolOption.value ? null : toolOption.value,
+                    )
+                  }
                   aria-pressed={isActive}
                   aria-label={toolOption.label}
                   className={getToolButtonClassName(isActive)}
@@ -2222,7 +2234,7 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
         <canvas
           ref={canvasRef}
           className="block h-full w-full"
-          style={{ touchAction: 'none', cursor: canvasCursor }}
+          style={{ touchAction: canvasTouchAction, cursor: canvasCursor }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -2434,11 +2446,13 @@ export default function RoomSketchPad({ value, onChange, className }: Props) {
 
       <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          {tool === 'select'
-            ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub skorzystaj z czerwonego przycisku kosza obok zaznaczenia.'
-            : tool === 'dimension'
-              ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
-              : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
+          {!tool
+            ? 'Wybierz narzędzie powyżej, aby rozpocząć rysowanie lub edycję szkicu.'
+            : tool === 'select'
+              ? 'Kliknij element, aby go zaznaczyć. Przeciągnij, aby zmienić jego położenie lub skorzystaj z czerwonego przycisku kosza obok zaznaczenia.'
+              : tool === 'dimension'
+                ? 'Kliknij i przeciągnij, aby dodać linię wymiaru, a następnie wpisz wartość w tabeli powyżej.'
+                : 'Przeciągnij po kratce, aby narysować element. Przybliżaj dwoma palcami, aby dopracować szczegóły.'}
         </div>
       </div>
     </div>
