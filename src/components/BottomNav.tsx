@@ -73,6 +73,20 @@ export default function BottomNav() {
                   </li>
                   <li>
                     <Link
+                      href="/projektuj-3d"
+                      onClick={() => setMenuOpen(false)}
+                      className={`flex items-center justify-between rounded-2xl px-4 py-3 transition ${
+                        pathname === '/projektuj-3d'
+                          ? 'bg-orange-100 text-orange-600'
+                          : 'hover:bg-orange-50 hover:text-orange-600'
+                      }`}
+                    >
+                      <span>Projektuj 3D</span>
+                      <span aria-hidden className="text-lg">→</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
                       href="/projektuj-2d"
                       onClick={() => setMenuOpen(false)}
                       className={`flex items-center justify-between rounded-2xl px-4 py-3 transition ${
@@ -136,6 +150,17 @@ export default function BottomNav() {
             >
               <span className="text-xl">🖌️</span>
               Stwórz
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/projektuj-3d"
+              className={`flex flex-col items-center ${
+                pathname === '/projektuj-3d' ? 'text-orange-500' : ''
+              }`}
+            >
+              <span className="text-xl">🧊</span>
+              Projektuj 3D
             </Link>
           </li>
           <li>
