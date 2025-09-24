@@ -293,10 +293,17 @@ export default function Home() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const basePan = useRef({ x: 0, y: 0 });
   const lastPanTouch = useRef<{ x: number; y: number } | null>(null);
+  const [mirrorStates, setMirrorStates] = useState<Record<string, boolean>>({});
+  const [mirrorAnimating, setMirrorAnimating] = useState<Record<string, boolean>>({});
+  const mirrorAnimationTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 0;
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 0;
   const bgOpacity = 1 - Math.min(1, (dragOffset.y / (screenH || 1)) * 2);
   const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+
+  const currentProject = fullscreenIndex !== null ? projects[fullscreenIndex] ?? null : null;
+  const currentProjectId = currentProject?.id ?? null;
+  const isCurrentMirrored = currentProjectId ? Boolean(mirrorStates[currentProjectId]) : false;
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('aspectRatio') : null;
@@ -315,6 +322,15 @@ export default function Home() {
   useEffect(() => {
     setCopied(false);
   }, [fullscreenIndex]);
+
+  useEffect(() => {
+    const timeoutsRef = mirrorAnimationTimeouts.current;
+    return () => {
+      Object.values(timeoutsRef).forEach((timeout) => {
+        clearTimeout(timeout);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     setScale(1);
@@ -690,6 +706,23 @@ export default function Home() {
 
     // 3) odśwież UI
     setProjects(prev => prev.filter(p => p.id !== proj.id));
+    setMirrorStates(prev => {
+      if (!(proj.id in prev)) return prev;
+      const next = { ...prev };
+      delete next[proj.id];
+      return next;
+    });
+    setMirrorAnimating(prev => {
+      if (!(proj.id in prev)) return prev;
+      const next = { ...prev };
+      delete next[proj.id];
+      return next;
+    });
+    const timeout = mirrorAnimationTimeouts.current[proj.id];
+    if (timeout) {
+      clearTimeout(timeout);
+      delete mirrorAnimationTimeouts.current[proj.id];
+    }
   };
 
   // --- ZAPIS DO GALERII ---
@@ -730,6 +763,41 @@ export default function Home() {
       console.error('Błąd zapisu obrazka', e);
       alert('Nie udało się zapisać obrazka');
     }
+  };
+
+  const toggleMirrorForCurrent = () => {
+    if (fullscreenIndex === null) return;
+    const project = projects[fullscreenIndex];
+    if (!project) return;
+    const projectId = project.id;
+
+    setMirrorStates(prev => {
+      const nextValue = !prev[projectId];
+      const next = { ...prev };
+      if (nextValue) {
+        next[projectId] = true;
+      } else {
+        delete next[projectId];
+      }
+      return next;
+    });
+
+    setMirrorAnimating(prev => ({ ...prev, [projectId]: true }));
+
+    const existingTimeout = mirrorAnimationTimeouts.current[projectId];
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    mirrorAnimationTimeouts.current[projectId] = setTimeout(() => {
+      setMirrorAnimating(prev => {
+        if (!(projectId in prev)) return prev;
+        const next = { ...prev };
+        delete next[projectId];
+        return next;
+      });
+      delete mirrorAnimationTimeouts.current[projectId];
+    }, 350);
   };
 
   const handleClearPrompt = () => {
@@ -1000,19 +1068,31 @@ export default function Home() {
             onTouchMove={(e) => { e.stopPropagation(); handleTouchMove(e); }}
             onTouchEnd={(e) => { e.stopPropagation(); handleTouchEnd(e); }}
           >
-            {projects.map((p, i) => (
-              <img
-                key={p.id}
-                src={p.imageUrl}
-                alt="Pełny ekran"
-                className="w-screen h-screen object-contain flex-shrink-0"
-                style={
-                  i === fullscreenIndex
-                    ? { transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})` }
-                    : undefined
-                }
-              />
-            ))}
+            {projects.map((p, i) => {
+              const mirrored = Boolean(mirrorStates[p.id]);
+              const animating = Boolean(mirrorAnimating[p.id]);
+              const imageClassName = `max-h-full max-w-full object-contain${
+                mirrored ? ' scale-x-[-1]' : ''
+              }${animating ? ' transition-transform duration-300' : ''}`;
+
+              return (
+                <div
+                  key={p.id}
+                  className="flex h-screen w-screen flex-shrink-0 items-center justify-center"
+                >
+                  <div
+                    className="flex h-full w-full items-center justify-center overflow-hidden"
+                    style={
+                      i === fullscreenIndex
+                        ? { transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})` }
+                        : undefined
+                    }
+                  >
+                    <img src={p.imageUrl} alt="Pełny ekran" className={imageClassName} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <button
             className="absolute left-4 top-1/2 -translate-y-1/2 text-white text-3xl p-2"
@@ -1103,6 +1183,36 @@ export default function Home() {
                 aria-label="Otwórz Projekt na wymiar"
               >
                 Projekt na wymiar
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMirrorForCurrent();
+                }}
+                className={`flex items-center gap-2 rounded-md px-3 py-1 text-sm transition ${
+                  isCurrentMirrored
+                    ? 'bg-white/90 text-slate-900 border border-white shadow-sm'
+                    : 'bg-black/60 text-white border border-white/50 hover:bg-black/70'
+                }`}
+                title="Odbij zdjęcie w poziomie"
+                aria-label="Przełącz odbicie lustrzane"
+                aria-pressed={isCurrentMirrored}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 6l-4 6 4 6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 6l4 6-4 6" />
+                  <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
+                </svg>
+                Lustro
               </button>
               <button
                 type="button"
