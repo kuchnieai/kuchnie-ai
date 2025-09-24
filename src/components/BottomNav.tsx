@@ -81,7 +81,7 @@ export default function BottomNav() {
                           : 'hover:bg-orange-50 hover:text-orange-600'
                       }`}
                     >
-                      <span>Strefa firm</span>
+                      <span>Strefa ofert</span>
                       <span aria-hidden className="text-lg">→</span>
                     </Link>
                   </li>
@@ -110,7 +110,7 @@ export default function BottomNav() {
               }`}
             >
               <span className="text-xl">🧭</span>
-              Explore
+              Inspiracje
             </Link>
           </li>
           <li>
@@ -132,7 +132,7 @@ export default function BottomNav() {
               }`}
             >
               <span className="text-xl">🏢</span>
-              Firmy
+              Oferty
             </Link>
           </li>
         </ul>
